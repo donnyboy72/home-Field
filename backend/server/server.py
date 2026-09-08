@@ -3,20 +3,21 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+import json
 
 
 HEADER = 64
 PORT = 5050
 FORMAT = "utf-8"
 DISCONNECT_MESSAGE = "!DISCONNECT"
-HOST = "192.168.0.218"
+HOST = "0.0.0.0"
 ADDRESS = (HOST, PORT)
-DATABASE_PATH = Path(__file__).with_name("messages.db")
+DATABASE_PATH = Path(__file__).resolve().parent.parent / "database" 
 
 
-def create_database():
+def create_messages_database():
     """create the messages table"""
-    with sqlite3.connect(DATABASE_PATH) as database:
+    with sqlite3.connect(DATABASE_PATH / "messages.db") as database:
         database.execute(
             """
             CREATE TABLE IF NOT EXISTS messages (
@@ -25,6 +26,21 @@ def create_database():
                 client_port INTEGER NOT NULL,
                 message TEXT NOT NULL,
                 timestamp TEXT NOT NULL
+            )
+            """
+        )
+
+def create_tasks_database():
+    """create the tasks table"""
+    with sqlite3.connect(DATABASE_PATH / "tasks.db") as database:
+        database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL
             )
             """
         )
@@ -88,6 +104,26 @@ def handle_client(connection, address):
                 connection.sendall("Disconnected".encode(FORMAT))
                 break
 
+            if json.loads(message).get("action") == "task.create":
+                task_data = json.loads(message).get("data")
+                if task_data:
+                    with sqlite3.connect(DATABASE_PATH / "tasks.db") as database:
+                        database.execute(
+                            """
+                            INSERT INTO tasks (title, description, status, created_at)
+                            VALUES (?, ?, ?, ?)
+                            """,
+                            (
+                                task_data.get("title"),
+                                task_data.get("description", ""),
+                                task_data.get("status", "todo"),
+                                datetime.now(timezone.utc).isoformat(),
+                            ),
+                        )
+                    connection.sendall("Task created successfully".encode(FORMAT))
+                else:
+                    connection.sendall("Invalid task data".encode(FORMAT))
+
             save_message(address, message)
             print(f"[{address[0]}:{address[1]}] {message}")
             connection.sendall("Message received and saved".encode(FORMAT))
@@ -100,7 +136,9 @@ def handle_client(connection, address):
 
 
 def start_server():
-    create_database()
+    create_messages_database()
+    create_tasks_database()
+
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

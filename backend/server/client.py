@@ -1,11 +1,12 @@
 import socket
-
+import json
+import uuid
 
 HEADER = 64
 PORT = 5050
 FORMAT = "utf-8"
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "192.168.0.218"
+SERVER = "10.2.176.217"
 ADDRESS = (SERVER, PORT)
 
 
@@ -24,6 +25,47 @@ def send_message(client, message):
     return client.recv(2048).decode(FORMAT)
 
 
+def create_task_request(task_data):
+    """validate task data and build a task.create request"""
+    if not isinstance(task_data, dict):
+        raise ValueError("Task data must be a JSON object.")
+
+    title = task_data.get("title")
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("Task title must be a non-empty string.")
+
+    description = task_data.get("description", "")
+    status = task_data.get("status", "todo")
+
+    if not isinstance(description, str):
+        raise ValueError("Task description must be a string.")
+    if status not in {"todo", "in_progress", "review", "done"}:
+        raise ValueError(
+            "Task status must be todo, in_progress, review, or done."
+        )
+
+    return {
+        "action": "task.create",
+        "request_id": str(uuid.uuid4()),
+        "data": {
+            "title": title.strip(),
+            "description": description.strip(),
+            "status": status,
+        },
+    }
+
+
+def display_response(response):
+    """display JSON responses, with support for the current plain-text server"""
+    try:
+        response_data = json.loads(response)
+    except json.JSONDecodeError:
+        print(f"Server: {response}")
+        return
+
+    print(f"Server: {json.dumps(response_data, indent=2)}")
+
+
 def start_client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
         try:
@@ -34,7 +76,7 @@ def start_client():
             return
 
         print(f"Connected to the server at {SERVER}:{PORT}")
-        print("Type a message and press Enter.")
+        print("Type /add to add a task.")
         print("Type /quit to disconnect.\n")
 
         try:
@@ -43,15 +85,42 @@ def start_client():
 
                 if message.lower() == "/quit":
                     response = send_message(client, DISCONNECT_MESSAGE)
-                    print(f"Server: {response}")
+                    display_response(response)
                     break
 
                 if not message:
                     print("Message cannot be empty.")
                     continue
 
+                if message.lower() == "/help":
+                    print("Type /quit to disconnect.")
+                    print("Type /help to see this message again.")
+                    print("Type /add to add a task.")
+                    continue
+
+                if message.lower() == "/add":
+                    print(
+                        'Enter task JSON (e.g., {"title": "Do laundry", '
+                        '"description": "Wash and fold", "status": "todo"}):'
+                    )
+                    task_input = input("Task: ")
+                    try:
+                        task_data = json.loads(task_input)
+                        request = create_task_request(task_data)
+                        message = json.dumps(request)
+                    except json.JSONDecodeError:
+                        print("Invalid JSON format. Please try again.")
+                        continue
+                    except ValueError as error:
+                        print(error)
+                        continue
+
+                else:
+                    print("Unknown command. Type /help to see available commands.")
+                    continue
+
                 response = send_message(client, message)
-                print(f"Server: {response}")
+                display_response(response)
 
         except (ConnectionError, KeyboardInterrupt):
             print("\nConnection closed.")
