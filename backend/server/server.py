@@ -50,7 +50,7 @@ def save_message(address, message):
     """save one message to sqlite"""
     timestamp = datetime.now(timezone.utc).isoformat()
 
-    with sqlite3.connect(DATABASE_PATH, timeout=10) as database:
+    with sqlite3.connect(DATABASE_PATH / "messages.db", timeout=10) as database:
         database.execute(
             """
             INSERT INTO messages (client_ip, client_port, message, timestamp)
@@ -75,6 +75,16 @@ def receive_exact(connection, byte_count):
     return b"".join(chunks)
 
 
+def send_response(connection, response):
+    """send one length-prefixed response"""
+    encoded_response = response.encode(FORMAT)
+    response_length = str(len(encoded_response)).encode(FORMAT)
+    padded_header = response_length + b" " * (HEADER - len(response_length))
+
+    connection.sendall(padded_header)
+    connection.sendall(encoded_response)
+
+
 def handle_client(connection, address):
     print(f"[NEW CONNECTION] {address[0]}:{address[1]} connected")
 
@@ -91,7 +101,7 @@ def handle_client(connection, address):
             try:
                 message_length = int(header_text)
             except ValueError:
-                connection.sendall("Invalid message header".encode(FORMAT))
+                send_response(connection, "Invalid message header")
                 break
 
             message_data = receive_exact(connection, message_length)
@@ -101,11 +111,19 @@ def handle_client(connection, address):
             message = message_data.decode(FORMAT)
 
             if message == DISCONNECT_MESSAGE:
-                connection.sendall("Disconnected".encode(FORMAT))
+                send_response(connection, "Disconnected")
                 break
 
-            if json.loads(message).get("action") == "task.create":
-                task_data = json.loads(message).get("data")
+            try:
+                request = json.loads(message)
+            except (json.JSONDecodeError, AttributeError):
+                save_message(address, message)
+                print(f"[{address[0]}:{address[1]}] {message}")
+                send_response(connection, "Message received and saved")
+                continue
+
+            if request.get("action") == "task.create":
+                task_data = request.get("data")
                 if task_data:
                     with sqlite3.connect(DATABASE_PATH / "tasks.db") as database:
                         database.execute(
@@ -120,13 +138,11 @@ def handle_client(connection, address):
                                 datetime.now(timezone.utc).isoformat(),
                             ),
                         )
-                    connection.sendall("Task created successfully".encode(FORMAT))
+                    send_response(connection, "Task created successfully")
                 else:
-                    connection.sendall("Invalid task data".encode(FORMAT))
-
-            save_message(address, message)
-            print(f"[{address[0]}:{address[1]}] {message}")
-            connection.sendall("Message received and saved".encode(FORMAT))
+                    send_response(connection, "Invalid task data")
+            else:
+                send_response(connection, "Invalid task data")
 
     except (ConnectionError, UnicodeDecodeError) as error:
         print(f"[CONNECTION ERROR] {address}: {error}")

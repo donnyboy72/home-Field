@@ -10,6 +10,21 @@ SERVER = "10.2.176.217"
 ADDRESS = (SERVER, PORT)
 
 
+def receive_exact(connection, byte_count):
+    """receive exactly byte_count bytes or return None if disconnected"""
+    chunks = []
+    bytes_received = 0
+
+    while bytes_received < byte_count:
+        chunk = connection.recv(byte_count - bytes_received)
+        if not chunk:
+            return None
+        chunks.append(chunk)
+        bytes_received += len(chunk)
+
+    return b"".join(chunks)
+
+
 def send_message(client, message):
     """send one length-prefixed message and return the server response"""
     encoded_message = message.encode(FORMAT)
@@ -22,7 +37,16 @@ def send_message(client, message):
     client.sendall(padded_header)
     client.sendall(encoded_message)
 
-    return client.recv(2048).decode(FORMAT)
+    response_header = receive_exact(client, HEADER)
+    if response_header is None:
+        raise ConnectionError("Server disconnected before sending a response")
+
+    response_length = int(response_header.decode(FORMAT).strip())
+    response_data = receive_exact(client, response_length)
+    if response_data is None:
+        raise ConnectionError("Server disconnected during the response")
+
+    return response_data.decode(FORMAT)
 
 
 def create_task_request(task_data):
@@ -115,9 +139,9 @@ def start_client():
                         print(error)
                         continue
 
-                else:
-                    print("Unknown command. Type /help to see available commands.")
-                    continue
+                # else:
+                #     print("Unknown command. Type /help to see available commands.")
+                #     continue
 
                 response = send_message(client, message)
                 display_response(response)
