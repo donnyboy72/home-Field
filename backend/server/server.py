@@ -40,10 +40,18 @@ def create_tasks_database():
                 title TEXT NOT NULL,
                 description TEXT,
                 status TEXT NOT NULL,
+                is_delete INTEGER NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
                 created_at TEXT NOT NULL
             )
             """
         )
+        columns = {
+            row[1] for row in database.execute("PRAGMA table_info(tasks)")
+        }
+        if "is_delete" not in columns:
+            database.execute(
+                "ALTER TABLE tasks ADD COLUMN is_delete INTEGER NOT NULL DEFAULT 0"
+            )
 
 
 def save_message(address, message):
@@ -122,25 +130,76 @@ def handle_client(connection, address):
                 send_response(connection, "Message received and saved")
                 continue
 
+            if not isinstance(request, dict):
+                send_response(connection, "Invalid task data")
+                continue
+
             if request.get("action") == "task.create":
                 task_data = request.get("data")
-                if task_data:
+                if (
+                    isinstance(task_data, dict)
+                    and isinstance(task_data.get("is_delete", False), bool)
+                ):
                     with sqlite3.connect(DATABASE_PATH / "tasks.db") as database:
                         database.execute(
                             """
-                            INSERT INTO tasks (title, description, status, created_at)
-                            VALUES (?, ?, ?, ?)
+                            INSERT INTO tasks (
+                                title, description, status, is_delete, created_at
+                            )
+                            VALUES (?, ?, ?, ?, ?)
                             """,
                             (
                                 task_data.get("title"),
                                 task_data.get("description", ""),
                                 task_data.get("status", "todo"),
+                                int(task_data.get("is_delete", False)),
                                 datetime.now(timezone.utc).isoformat(),
                             ),
                         )
                     send_response(connection, "Task created successfully")
                 else:
                     send_response(connection, "Invalid task data")
+            elif request.get("action") == "task.view":
+                with sqlite3.connect(DATABASE_PATH / "tasks.db") as database:
+                    database.row_factory = sqlite3.Row
+                    rows = database.execute(
+                        """
+                        SELECT id, title, description, status, is_delete, created_at
+                        FROM tasks
+                        WHERE is_delete = 0
+                        ORDER BY id
+                        """
+                    ).fetchall()
+
+                tasks = []
+                for row in rows:
+                    task = dict(row)
+                    task["is_delete"] = bool(task["is_delete"])
+                    tasks.append(task)
+
+                send_response(connection, json.dumps({"tasks": tasks}))
+            elif request.get("action") == "task.delete":
+                task_data = request.get("data")
+                title = task_data.get("title") if isinstance(task_data, dict) else None
+
+                if not isinstance(title, str) or not title.strip():
+                    send_response(connection, "Invalid task title")
+                    continue
+
+                with sqlite3.connect(DATABASE_PATH / "tasks.db") as database:
+                    cursor = database.execute(
+                        """
+                        UPDATE tasks
+                        SET is_delete = 1
+                        WHERE title = ? AND is_delete = 0
+                        """,
+                        (title.strip(),),
+                    )
+
+                if cursor.rowcount:
+                    send_response(connection, "Task marked as deleted successfully")
+                else:
+                    send_response(connection, "No such task exists")
             else:
                 send_response(connection, "Invalid task data")
 

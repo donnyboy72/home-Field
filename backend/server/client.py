@@ -60,6 +60,7 @@ def create_task_request(task_data):
 
     description = task_data.get("description", "")
     status = task_data.get("status", "todo")
+    is_delete = task_data.get("is_delete", False)
 
     if not isinstance(description, str):
         raise ValueError("Task description must be a string.")
@@ -67,6 +68,8 @@ def create_task_request(task_data):
         raise ValueError(
             "Task status must be todo, in_progress, review, or done."
         )
+    if not isinstance(is_delete, bool):
+        raise ValueError("Task is_delete must be a boolean.")
 
     return {
         "action": "task.create",
@@ -75,6 +78,7 @@ def create_task_request(task_data):
             "title": title.strip(),
             "description": description.strip(),
             "status": status,
+            "is_delete": is_delete,
         },
     }
 
@@ -101,6 +105,8 @@ def start_client():
 
         print(f"Connected to the server at {SERVER}:{PORT}")
         print("Type /add to add a task.")
+        print("Type /view to view all tasks.")
+        print("Type /delete to delete a task by title.")
         print("Type /quit to disconnect.\n")
 
         try:
@@ -120,12 +126,15 @@ def start_client():
                     print("Type /quit to disconnect.")
                     print("Type /help to see this message again.")
                     print("Type /add to add a task.")
+                    print("Type /view to view all tasks.")
+                    print("Type /delete to delete a task by title.")
                     continue
 
                 if message.lower() == "/add":
                     print(
                         'Enter task JSON (e.g., {"title": "Do laundry", '
-                        '"description": "Wash and fold", "status": "todo"}):'
+                        '"description": "Wash and fold", "status": "todo", '
+                        '"is_delete": false}):'
                     )
                     task_input = input("Task: ")
                     try:
@@ -138,6 +147,27 @@ def start_client():
                     except ValueError as error:
                         print(error)
                         continue
+
+                if message.lower() == "/view":
+                    message = json.dumps(
+                        {
+                            "action": "task.view",
+                            "request_id": str(uuid.uuid4()),
+                        }
+                    )
+
+                if message.lower() == "/delete":
+                    title = input("Task title: ").strip()
+                    if not title:
+                        print("Task title must be a non-empty string.")
+                        continue
+                    message = json.dumps(
+                        {
+                            "action": "task.delete",
+                            "request_id": str(uuid.uuid4()),
+                            "data": {"title": title},
+                        }
+                    )
 
                 # else:
                 #     print("Unknown command. Type /help to see available commands.")
