@@ -1,3 +1,18 @@
 # Local SQLite databases
 *.db
+.venv/
+__pycache__/
+*.pyc
+*.db
 
+# Python-generated files
+__pycache__/
+*.py[cod]
+
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Environment variables and secrets
+.env
