@@ -4,6 +4,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import zeroconf
+
 
 
 HEADER = 64
