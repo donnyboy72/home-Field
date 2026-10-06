@@ -2,13 +2,15 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from db import init_database
+from tasks import create_task, list_tasks, get_task
+from pathlib import Path
 
 
 def create_app():
     app = Flask(__name__) #create a flash app instance
 
     # Set the location of the SQLite database file.
-    app.config["DATABASE"] = "database/homefield.db"
+    app.config["DATABASE"] = str(Path(__file__).resolve().parent / "database" / "homefield.db")
 
     # if test_config:
     #     app.config.update(test_config)
