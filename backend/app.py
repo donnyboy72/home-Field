@@ -6,14 +6,22 @@ from tasks import create_task, list_tasks, get_task
 from pathlib import Path
 
 
-def create_app():
-    app = Flask(__name__) #create a flash app instance
+def create_app(test_config=None):
+    """Create and configure the Flask application.
+
+    test_config is optional. The real application uses homefield.db, while the
+    automated tests pass in a temporary database so tests cannot change the
+    developers' local data.
+    """
+    app = Flask(__name__)  # Create the Flask application instance.
 
     # Set the location of the SQLite database file.
     app.config["DATABASE"] = str(Path(__file__).resolve().parent / "database" / "homefield.db")
 
-    # if test_config:
-    #     app.config.update(test_config)
+    # Override normal settings when a caller supplies test configuration.
+    # For example, the tests replace homefield.db with a temporary test.db.
+    if test_config is not None:
+        app.config.update(test_config)
 
 
     # enable CORS for the app
