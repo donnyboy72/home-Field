@@ -156,3 +156,64 @@ def task_to_dict(row):
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+
+
+def delete_task(task_id):
+    """Hide a task while preserving its data for 24-hour recovery.
+
+    Repeated deletion does not reset the original recovery window.
+    """
+    database = get_database()
+    now = utc_now()
+    cursor = database.execute(
+        """UPDATE task SET is_deleted = 1, deleted_at = ?, updated_at = ?
+        WHERE id = ? AND is_deleted = 0""", (now, now, task_id)
+    )
+    database.commit()
+    return cursor.rowcount > 0
+
+
+def list_deleted_tasks():
+    """Return deleted tasks that can still be restored."""
+    now = datetime.now(timezone.utc)
+    rows = get_database().execute(
+        "SELECT * FROM task WHERE is_deleted = 1 ORDER BY id"
+    ).fetchall()
+    return [task_to_dict(row) for row in rows if is_recoverable(row, now)]
+
+
+def is_recoverable(row, now):
+    """Use elapsed UTC time rather than formatted timestamp comparisons."""
+    from datetime import timedelta
+
+    try:
+        deleted_at = datetime.fromisoformat(row["deleted_at"])
+        if deleted_at.tzinfo is None:
+            deleted_at = deleted_at.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    return deleted_at <= now < deleted_at + timedelta(hours=24)
+
+
+def restore_task(task_id):
+    """Restore a deleted task before its recovery window expires."""
+    database = get_database()
+    # Serialize the check and update so a competing restore cannot race it.
+    database.execute("BEGIN IMMEDIATE")
+    try:
+        row = database.execute("SELECT * FROM task WHERE id = ?", (task_id,)).fetchone()
+        if row is None or not row["is_deleted"]:
+            database.rollback()
+            return None, "Deleted task not found", 404
+        if not is_recoverable(row, datetime.now(timezone.utc)):
+            database.rollback()
+            return None, "Task recovery window has expired", 410
+        database.execute(
+            """UPDATE task SET is_deleted = 0, deleted_at = NULL, updated_at = ?
+            WHERE id = ?""", (utc_now(), task_id)
+        )
+        database.commit()
+    except Exception:
+        database.rollback()
+        raise
+    return get_task(task_id), None, 200
