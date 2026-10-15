@@ -2,7 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from db import init_database
-from tasks import create_task, list_tasks, get_task
+from tasks import (create_task, list_tasks, get_task, delete_task,
+                   list_deleted_tasks, restore_task)
 from pathlib import Path
 
 
@@ -80,6 +81,23 @@ def create_app(test_config=None):
             return jsonify({"error": "Task not found"}), 404
 
         return jsonify({"task": task}), 200
+
+    @app.delete("/api/tasks/<int:task_id>")
+    def delete_task_route(task_id):
+        if not delete_task(task_id):
+            return jsonify({"error": "Task not found"}), 404
+        return "", 204
+
+    @app.get("/api/tasks/deleted")
+    def deleted_tasks_route():
+        return jsonify({"tasks": list_deleted_tasks()}), 200
+
+    @app.post("/api/tasks/<int:task_id>/restore")
+    def restore_task_route(task_id):
+        task, error, status = restore_task(task_id)
+        if error:
+            return jsonify({"error": error}), status
+        return jsonify({"task": task}), status
 
     return app
 
