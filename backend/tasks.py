@@ -62,7 +62,7 @@ def validate_task_payload(payload):
     return None
 
 
-def create_task(payload, creator):
+def create_task(payload, creator_id):
     """Validate and save a task, returning (task, error)."""
     validation_error = validate_task_payload(payload)
     if validation_error:
