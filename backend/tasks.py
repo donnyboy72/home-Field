@@ -54,7 +54,7 @@ def validate_task_payload(payload):
     if isinstance(deadline, str) and not deadline.strip():
         return "Task deadline must be a non-empty string or null"
 
-    for field_name in ("project_id", "created_by", "assigned_to"):
+    for field_name in ("project_id", "assigned_to"):
         error = validate_optional_id(payload, field_name)
         if error:
             return error
