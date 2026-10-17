@@ -62,13 +62,24 @@ def validate_task_payload(payload):
     return None
 
 
-def create_task(payload):
+def create_task(payload, creator):
     """Validate and save a task, returning (task, error)."""
     validation_error = validate_task_payload(payload)
     if validation_error:
         return None, validation_error
 
     database = get_database()
+
+    assigned_to = payload.get("assigned_to")
+
+    if assigned_to is not None:
+        assigned_user = database.execute(
+            "SELECT id FROM user WHERE id=?", (assigned_to,),
+        ).fetchone()
+
+        if assigned_user is None:
+            return None, "Assigned user does not exist"
+        
     current_time = utc_now()
 
     # IDs, deletion information, and timestamps are controlled by the server.
@@ -96,7 +107,7 @@ def create_task(payload):
             payload.get("status", "todo"),
             payload.get("deadline"),
             payload.get("project_id"),
-            payload.get("created_by"),
+            creator_id,
             payload.get("assigned_to"),
             current_time,
             current_time,
