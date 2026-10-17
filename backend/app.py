@@ -89,12 +89,9 @@ def create_app(test_config=None):
         if payload is None:
             return jsonify({"error": "Request must contain JSON"}), 400
 
-        # Identify the creator from the session, not from client-supplied data.
-        if isinstance(payload, dict):
-            payload = {**payload, "created_by": g.user["id"]}
-
         # Keep validation and database work in the task helper, outside the route.
-        task, error = create_task(payload)
+        # Identify the creator from the session, not from client-supplied data.
+        task, error = create_task(payload, g.user["id"])
 
         if error:
             return jsonify({"error": error}), 400
@@ -152,10 +149,10 @@ def create_app(test_config=None):
         user, error, status = create_user(payload)
 
         if error:
-            return jsonify({"eroor": error}), status
+            return jsonify({"error": error}), status
         return jsonify({"user": user}), status
 
-    @app.post("/app/auth/login")
+    @app.post("/api/auth/login")
     def login_route():
         """Check credentials and issue a session token for a successful login."""
         payload = request.get_json(silent=True)
@@ -180,7 +177,7 @@ def create_app(test_config=None):
         """Return the user that login_required attached to this request."""
         return jsonify({"user": g.user}), 200
 
-    app.post("/api/auth/logout")
+    @app.post("/api/auth/logout")
     @login_required
     def logout_route():
         """Delete the authenticated session and return an empty 204 response."""

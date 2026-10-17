@@ -66,17 +66,17 @@ def auth_headers(client):
     """Register and log in a test user, then return its Bearer token header."""
     # Create the account through the API so authentication tests exercise the
     # backend's normal validation and password hashing in the temporary database.
-    client.ost(
+    client.post(
         "/api/auth/signup",
         json={"username": "dummy_user",
-              "password": "dummy_password"},
+              "password": "dummy_password_123"},
     )
 
     # Log in with the same credentials to obtain a server-issued session token.
     response = client.post(
         "/api/auth/login",
         json={"username": "dummy_user",
-              "password": "dummy_password"},)
+              "password": "dummy_password_123"},)
 
     # Protected routes expect Authorization: Bearer <token>. Tests can pass
     # this dictionary as headers=auth_headers on individual client requests.

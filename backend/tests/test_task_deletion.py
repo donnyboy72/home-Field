@@ -4,7 +4,8 @@ import pytest
 from app import create_app
 
 
-def test_delete_restore_and_restart(client, app):
+def test_delete_restore_and_restart(authenticated_client, app):
+    client = authenticated_client
     original = client.post('/api/tasks', json={'title': 'Saved task', 'status': 'done'}).get_json()['task']
     url = f"/api/tasks/{original['id']}"
     assert client.delete(url).status_code == 204
@@ -28,7 +29,8 @@ def test_delete_restore_and_restart(client, app):
 
 
 @pytest.mark.parametrize('hours,code', [(23, 200), (24, 410), (25, 410)])
-def test_recovery_limit(client, app, hours, code):
+def test_recovery_limit(authenticated_client, app, hours, code):
+    client = authenticated_client
     task_id = client.post('/api/tasks', json={'title': 'Test'}).get_json()['task']['id']
     url = f'/api/tasks/{task_id}'
     client.delete(url)
@@ -42,7 +44,8 @@ def test_recovery_limit(client, app, hours, code):
             assert db.execute('SELECT is_deleted FROM task WHERE id = ?', (task_id,)).fetchone()[0] == 1
 
 
-def test_missing_and_active(client):
+def test_missing_and_active(authenticated_client):
+    client = authenticated_client
     assert client.delete('/api/tasks/999').status_code == 404
     assert client.post('/api/tasks/999/restore').status_code == 404
     task_id = client.post('/api/tasks', json={'title': 'Test'}).get_json()['task']['id']

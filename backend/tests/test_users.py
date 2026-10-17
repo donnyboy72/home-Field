@@ -67,9 +67,10 @@ def test_wrong_password(client, auth_headers):
     assert response.get_json()["error"] == "Invalid username or password"
 
 def test_task_require_login(client):
-    """Expect the requested task endpoint to reject an unauthenticated client."""
+    """Task creation must reject an unauthenticated client."""
     # No auth_headers fixture is requested, so this request has no Bearer token.
-    assert client.get("/api/task").status_code == 401
+    response = client.post("/api/tasks", json={"title": "Requires login"})
+    assert response.status_code == 401
 
 def test_logout_ends_session(client, auth_headers):
     """Check that an authenticated logout request returns an empty success."""

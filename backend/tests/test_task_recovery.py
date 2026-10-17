@@ -29,11 +29,13 @@ def test_recovery_accepts_equivalent_timezone():
     assert is_recoverable({'deleted_at': '2026-10-17T07:00:00-04:00'}, now)
 
 
-def test_restore_twice_and_delete_again(client):
+def test_restore_twice_and_delete_again(authenticated_client):
+    client = authenticated_client
+    user = client.get('/api/auth/me').get_json()['user']
     original = client.post('/api/tasks', json={
         'title': 'Restore all fields', 'description': 'Keep description',
         'deadline': '2026-10-20', 'status': 'in_progress',
-        'project_id': 1, 'created_by': 2, 'assigned_to': 3,
+        'project_id': 1, 'created_by': user['id'] + 1, 'assigned_to': user['id'],
     }).get_json()['task']
     url = f"/api/tasks/{original['id']}"
     client.delete(url)

@@ -13,8 +13,10 @@ def test_health_check(client):
     assert response.get_json() == {"status": "running"}
 
 
-def test_create_and_retrieve_task(client):
+def test_create_and_retrieve_task(authenticated_client):
     """A task created through POST should be returned by later GET requests."""
+    client = authenticated_client
+    user = client.get("/api/auth/me").get_json()["user"]
     # Send the same kind of JSON request that the Vue/Electron client will use.
     create_response = client.post(
         "/api/tasks",
@@ -23,11 +25,11 @@ def test_create_and_retrieve_task(client):
             "description": "Send tasks through the Flask API",
             "status": "in_progress",
             "deadline": "2026-10-20T23:59:00+00:00",
-            # These relationships are nullable until project and user creation
-            # are implemented, but the task API already preserves their IDs.
+            # Project and assignee IDs are preserved. A supplied creator ID
+            # must be replaced with the authenticated user's ID.
             "project_id": 1,
-            "created_by": 2,
-            "assigned_to": 3,
+            "created_by": user["id"] + 1,
+            "assigned_to": user["id"],
         },
     )
 
@@ -40,8 +42,8 @@ def test_create_and_retrieve_task(client):
     assert created_task["status"] == "in_progress"
     assert created_task["deadline"] == "2026-10-20T23:59:00+00:00"
     assert created_task["project_id"] == 1
-    assert created_task["created_by"] == 2
-    assert created_task["assigned_to"] == 3
+    assert created_task["created_by"] == user["id"]
+    assert created_task["assigned_to"] == user["id"]
     assert created_task["is_deleted"] is False
     assert created_task["deleted_at"] is None
     assert created_task["created_at"]
@@ -58,16 +60,18 @@ def test_create_and_retrieve_task(client):
     assert list_response.get_json()["tasks"] == [created_task]
 
 
-def test_create_task_requires_json(client):
+def test_create_task_requires_json(authenticated_client):
     """POST requests without JSON should receive a useful client error."""
+    client = authenticated_client
     response = client.post("/api/tasks")
 
     assert response.status_code == 400
     assert response.get_json() == {"error": "Request must contain JSON"}
 
 
-def test_create_task_requires_title(client):
+def test_create_task_requires_title(authenticated_client):
     """Task JSON should be rejected when its title is missing or empty."""
+    client = authenticated_client
     response = client.post("/api/tasks", json={"title": "   "})
 
     assert response.status_code == 400
@@ -76,8 +80,9 @@ def test_create_task_requires_title(client):
     }
 
 
-def test_create_task_uses_defaults(client):
+def test_create_task_uses_defaults(authenticated_client):
     """Optional fields should receive predictable server-side defaults."""
+    client = authenticated_client
     response = client.post("/api/tasks", json={"title": "Minimal task"})
 
     assert response.status_code == 201
@@ -86,12 +91,14 @@ def test_create_task_uses_defaults(client):
     assert task["status"] == "todo"
     assert task["deadline"] is None
     assert task["project_id"] is None
-    assert task["created_by"] is None
+    user = client.get("/api/auth/me").get_json()["user"]
+    assert task["created_by"] == user["id"]
     assert task["assigned_to"] is None
 
 
-def test_create_task_rejects_invalid_status(client):
+def test_create_task_rejects_invalid_status(authenticated_client):
     """A task status must match one of the values supported by the workflow."""
+    client = authenticated_client
     response = client.post(
         "/api/tasks",
         json={"title": "Invalid task", "status": "almost_finished"},
@@ -103,8 +110,9 @@ def test_create_task_rejects_invalid_status(client):
     }
 
 
-def test_create_task_rejects_invalid_optional_id(client):
+def test_create_task_rejects_invalid_optional_id(authenticated_client):
     """Project and user references must be positive integer IDs or null."""
+    client = authenticated_client
     response = client.post(
         "/api/tasks",
         json={"title": "Invalid project", "project_id": -1},

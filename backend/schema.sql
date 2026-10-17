@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 
 -- This table is used to store sessions for users
@@ -32,5 +32,5 @@ CREATE TABLE IF NOT EXISTS user (
 CREATE TABLE IF NOT EXISTS session (
     token_hash TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES user(id),
-    expires_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
 );

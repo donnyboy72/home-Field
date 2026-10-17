@@ -78,7 +78,7 @@ def create_user(payload):
     try:
         cursor = database.execute(
             """
-            INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)
+            INSERT INTO user (username, password_hash, created_at) VALUES (?, ?, ?)
             """, 
             (username, password_hash, created_at)
         )
