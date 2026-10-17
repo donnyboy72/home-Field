@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS user (
     created_at TEXT NOT NULL,
 );
 
+-- This table is used to store sessions for users
+-- Allowing for host to remember users and keep them logged in for a period of time
 CREATE TABLE IF NOT EXISTS session (
     token_hash TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES user(id),
