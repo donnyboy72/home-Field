@@ -68,8 +68,8 @@ def create_user(payload):
         return None, "Password must be 15-28 characters", 400
 
     # Prepare the password hash and server-controlled UTC creation timestamp.
-    pashword_hash = generate_password_hash(password)
-    create_at = datatime.nom(timezone.utc).isoformat()
+    password_hash = generate_password_hash(password)
+    created_at = datetime.now(timezone.utc).isoformat()
     database = get_database()
 
     # SQL placeholders keep client values separate from the SQL statement.
