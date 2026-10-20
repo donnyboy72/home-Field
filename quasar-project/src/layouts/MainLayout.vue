@@ -6,6 +6,7 @@
         <q-toolbar-title>
           Homefield
         </q-toolbar-title>
+        <q-btn label="X" to="/"/>
       </q-toolbar>
     </q-header>
 
