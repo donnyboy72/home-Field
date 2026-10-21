@@ -1,0 +1,15 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\quasar-project",
+    "\\quasar-project\\src",
+    "\\quasar-project\\src\\assets",
+    "\\quasar-project\\src\\boot",
+    "\\quasar-project\\src\\components",
+    "\\quasar-project\\src\\css",
+    "\\quasar-project\\src\\layouts",
+    "\\quasar-project\\src\\pages"
+  ],
+  "SelectedNode": "\\quasar-project\\quasar.config.js",
+  "PreviewInSolutionExplorer": false
+}
