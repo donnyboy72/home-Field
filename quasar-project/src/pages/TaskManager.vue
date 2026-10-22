@@ -1,71 +1,133 @@
 <template>
   <q-page class="q-ma-md">
+    <p v-if="error" class="text-negative" role="alert">{{ error }}</p>
+    <p v-if="notice" class="text-positive" role="status">{{ notice }}</p>
     <div>
       <q-table
-        
         flat
         bordered
         card-class="bg-accent"
         hide-bottom
-        :rows="tasks">
-        <template v-slot:body-cell-action="props">
-            <q-td :props="props">
-                <q-btn label="Hi"/>
-            </q-td>
-        </template>
-    </q-table>
+        row-key="id"
+        :pagination="{ rowsPerPage: 0 }"
+        :loading="loading"
+        :rows="tasks"
+        :columns="columns"
+        no-data-label="No tasks yet"
+      />
     </div>
-
     <div
       class="absolute-bottom-right q-ma-lg"
-      style="min-width: 360px">
+      style="width: 360px; max-width: calc(100% - 32px)"
+    >
       <q-expansion-item
         expand-separator
         outlined
         label="Create Task"
         header-class="bg-primary text-accent"
-        class="q-ma-lg">
-          <div class="q-ma-sm">
-            <q-input dense outlined v-model="text" label="Title"/>
-            <q-btn dense label="Submit" class="bg-primary text-accent full-width" @click="createTask"/>
-          </div>
-        </q-expansion-item>
-      </div>
-    
+        class="q-ma-lg"
+      >
+        <q-form ref="form" class="q-ma-sm" @submit="submitTask">
+          <q-input
+            dense
+            outlined
+            v-model="text"
+            label="Title"
+            :disable="submitting"
+            :rules="[value => !!value.trim() || 'Enter a task title']"
+          />
+          <q-btn
+            dense
+            type="submit"
+            label="Submit"
+            class="bg-primary text-accent full-width"
+            :loading="submitting"
+          />
+        </q-form>
+      </q-expansion-item>
+    </div>
   </q-page>
 </template>
 
-<script>
-  import {ref} from 'vue'
-  import axios from 'axios'
+<script setup>
+import { ref, onMounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
+import { createTask, loadTasks } from '../services/tasks'
+import { clearSession } from '../services/auth'
 
+const router = useRouter()
+const tasks = ref([]),
+  text = ref(''),
+  form = ref(null)
+const loading = ref(false),
+  submitting = ref(false)
+const error = ref(''),
+  notice = ref('')
+const columns = [
+  {
+    name: 'title',
+    label: 'Title',
+    field: 'title',
+    align: 'left',
+    sortable: true
+  },
+  {
+    name: 'status',
+    label: 'Status',
+    field: row =>
+      ({
+        todo: 'To Do',
+        in_progress: 'In Progress',
+        review: 'Review',
+        done: 'Complete'
+      })[row.status] || row.status,
+    align: 'left'
+  }
+]
 
-    export default{
-        setup(){
-            const tasks = ref([])
-            const loadTasks = async() => {
-                try{
-                const response = await axios.get("/api/tasks")
-                tasks.value = response.data.tasks
-                }catch (err){
-                    console.log(err)
-                }
-            }
+function handleError(err) {
+  if (err.response?.status === 401) {
+    clearSession()
+    router.replace({ path: '/login', query: { reason: 'expired' } })
+    return
+  }
+  error.value =
+    err.response?.data?.error ||
+    (err.isAxiosError
+      ? 'Could not reach the host. Check that Flask is running and try again.'
+      : err.message)
+}
 
-            loadTasks()
+async function refreshTasks() {
+  loading.value = true
+  try {
+    tasks.value = await loadTasks()
+  } catch (err) {
+    handleError(err)
+  } finally {
+    loading.value = false
+  }
+}
 
-            const createTask = () => {
-                axios.post("/api/tasks", JSON.stringify({
-                    title: "foo"
-                })).then(response => {console.log(response)})
-            }
-            return{
-                tasks,
-                createTask
-            }
-        }
+async function submitTask() {
+  if (submitting.value || !text.value.trim()) return
+  submitting.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const task = await createTask(text.value)
+    // Add the saved server record immediately, without a second POST or GET.
+    tasks.value = [...tasks.value.filter(row => row.id !== task.id), task]
+    text.value = ''
+    await nextTick()
+    form.value?.resetValidation()
+    notice.value = 'Task created.'
+  } catch (err) {
+    handleError(err)
+  } finally {
+    submitting.value = false
+  }
+}
 
-    }
-
-  
+onMounted(refreshTasks)
 </script>
