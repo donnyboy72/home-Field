@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import axios from 'axios'
+import { login, authError } from '../services/auth'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -45,7 +45,13 @@ const registered = computed(() => route.query.registered === '1')
 const username = ref('')
 const password = ref('')
 const submitting = ref(false)
-const error = ref('')
+const error = ref(
+  route.query.reason === 'expired'
+    ? 'Your session expired. Please log in again.'
+    : route.query.reason === 'offline'
+      ? 'Could not verify your session. Check the host connection.'
+      : ''
+)
 
 async function submit() {
   if (submitting.value) return
@@ -58,18 +64,11 @@ async function submit() {
 
   submitting.value = true
   try {
-    const response = await axios.post(
-      `${apiBaseUrl}/api/auth/login`,
-      { username: username.value.trim(), password: password.value },
-      { timeout: 5000 }
-    )
+    await login(username.value, password.value)
     password.value = ''
-    localStorage.setItem('token', response.data.token)
     await router.push('/main')
   } catch (err) {
-    error.value =
-      err.response?.data?.error ||
-      'Could not reach the host. Check your connection and try again.'
+    error.value = authError(err)
   } finally {
     submitting.value = false
   }

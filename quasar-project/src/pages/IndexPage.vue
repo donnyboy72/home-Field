@@ -1,10 +1,6 @@
 <template>
   <q-page class="q-ma-lg">
-    <q-form
-      class="fixed-center"
-      style="width: 260px"
-      @submit="connect"
-    >
+    <q-form class="fixed-center" style="width: 260px" @submit="connect">
       <q-input
         v-model="port"
         label="Port #"
@@ -34,6 +30,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { connectHost } from '../services/auth'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -45,25 +42,8 @@ async function connect() {
   connecting.value = true
   error.value = ''
 
-  // Assumes Flask runs on the same computer as this browser.
-  const apiBaseUrl = `http://localhost:${Number(port.value)}`
-
   try {
-    const response = await fetch(`${apiBaseUrl}/api/health`, {
-      signal: AbortSignal.timeout(5000)
-    })
-
-    if (!response.ok) {
-      throw new Error('Health check failed')
-    }
-
-    const data = await response.json()
-
-    if (data.status !== 'running') {
-      throw new Error('Unexpected health response')
-    }
-
-    localStorage.setItem('apiBaseUrl', apiBaseUrl)
+    await connectHost(port.value)
     await router.push('/login')
   } catch {
     error.value =
