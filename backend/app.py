@@ -60,7 +60,8 @@ def create_app(test_config=None):
             r"/api/*": {
                 # Only allow requests from the Vue development server.
                 "origins": ["http://localhost:5173", 
-                "http://localhost:9000",]
+                "http://localhost:9000",
+                "http://172.20.10.10:9000",]
             }
         },
     )
