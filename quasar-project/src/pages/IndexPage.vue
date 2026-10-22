@@ -8,6 +8,28 @@
 </template>
 
 <script>
-  const apiURL = "..\..\backend\app.py"
-  fetch(apiURL)
+  import axios from 'axios';
+
+  export default{
+    data(){
+      return {
+        status,
+      };
+    },
+    methods: {
+      health_check(){
+        const path = 'http://localhost:50000/api/health';
+        axios.get(path)
+          .then((res)=>{
+            this.status=res.data.status;
+          })
+          .catch((error)=>{
+            console.error(error);
+          });
+      },
+    },
+    created(){
+      this.health_check();
+    },
+  };
 </script>

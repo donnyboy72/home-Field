@@ -3,9 +3,10 @@ const routes = [
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('@/pages/IndexPage.vue') },
-      { path: 'login', component: () => import('@/pages/LoginPage.vue') },
-      { path: 'main', component: () => import('@/pages/TaskManager.vue') }
+      //{ path: '', component: () => import('@/pages/IndexPage.vue') },
+      { path: '', component: () => import('@/pages/LoginPage.vue') },
+      { path: 'main', component: () => import('@/pages/TaskManager.vue') },
+      { path: 'signup', component: () => import('@/pages/SignUpPage.vue')}
     ]
   },
 
