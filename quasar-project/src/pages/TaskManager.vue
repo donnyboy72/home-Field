@@ -5,11 +5,9 @@
         
         flat
         bordered
-        align="left"
         card-class="bg-accent"
         hide-bottom
-        :rows="rows"
-        :columns="columns">
+        :rows="tasks">
         <template v-slot:body-cell-action="props">
             <q-td :props="props">
                 <q-btn label="Hi"/>
@@ -29,7 +27,7 @@
         class="q-ma-lg">
           <div class="q-ma-sm">
             <q-input dense outlined v-model="text" label="Title"/>
-            <q-btn dense label="Submit" class="bg-primary text-accent full-width" @click="submitTask(text)"/>
+            <q-btn dense label="Submit" class="bg-primary text-accent full-width" @click="createTask"/>
           </div>
         </q-expansion-item>
       </div>
@@ -37,16 +35,37 @@
   </q-page>
 </template>
 
-<script setup>
+<script>
   import {ref} from 'vue'
+  import axios from 'axios'
 
-  const rows = ref([])
-  //const columns = [{name: title, label: "Title"}]
 
-  function submitTask(title){
+    export default{
+        setup(){
+            const tasks = ref([])
+            const loadTasks = async() => {
+                try{
+                const response = await axios.get("/api/tasks")
+                tasks.value = response.data.tasks
+                }catch (err){
+                    console.log(err)
+                }
+            }
 
-    const submission = {title}
-    rows.value = [...rows.value.slice(0), submission]
+            loadTasks()
 
-  }
+            const createTask = () => {
+                axios.post("/api/tasks", JSON.stringify({
+                    title: "foo"
+                })).then(response => {console.log(response)})
+            }
+            return{
+                tasks,
+                createTask
+            }
+        }
+
+    }
+
+  
 </script>
