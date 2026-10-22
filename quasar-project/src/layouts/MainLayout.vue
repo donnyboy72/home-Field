@@ -12,7 +12,7 @@
           :loading="loggingOut"
           @click="signOut"
         />
-        <q-btn v-else label="Connection" to="/" />
+        <q-btn v-else label="Connection" href="/" />
       </q-toolbar>
     </q-header>
 

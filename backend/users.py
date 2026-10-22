@@ -85,7 +85,7 @@ def create_user(payload):
         database.commit()
     except sqlite3.IntegrityError:
         database.rollback()
-        return None, "Username is aldready in use", 409
+        return None, "Username is already in use", 409
 
     # Read back the database-assigned ID and return only public account fields.
     row = database.execute(
