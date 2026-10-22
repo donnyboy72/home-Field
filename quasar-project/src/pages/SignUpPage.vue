@@ -9,7 +9,7 @@
             <input type="password" label="Password" class ="relative-top" id="signUpPassword"/>
         </form>
             <q-btn label="Sign Up" class="q-mt-sm" style="min-width: 200px" @click=""/>
-            <q-btn text-color="secondary" flat dense to="/" label="Log In" style="min-width: 200px"/>
+            <q-btn text-color="secondary" flat dense to="login" label="Log In" style="min-width: 200px"/>
     </div>
   </q-page>
 </template>
