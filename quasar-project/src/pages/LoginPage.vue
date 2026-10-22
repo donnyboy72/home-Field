@@ -7,8 +7,8 @@
             <label for="logInPassword">Password:</label>
             <input type="password" label="Password" class ="relative-top" id="logInPassword"/>
         </form>
-            <q-btn label="Sign Up" class="q-mt-sm" style="min-width: 200px" @click=""/>
-            <q-btn text-color="secondary" flat dense to="/" label="Log In" style="min-width: 200px"/>
+            <q-btn label="Log In" class="q-mt-sm" style="min-width: 200px" @click=""/>
+            <q-btn text-color="secondary" flat dense to="/signup" label="Sign Up" style="min-width: 200px"/>
     </div>
   </q-page>
 </template>
