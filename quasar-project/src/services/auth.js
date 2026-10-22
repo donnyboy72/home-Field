@@ -14,11 +14,17 @@ function baseUrl() {
   return base
 }
 
-export async function connectHost(port) {
+export async function connectHost(host, port) {
   if (!/^\d+$/.test(String(port)) || Number(port) < 1 || Number(port) > 65535) {
     throw new Error('Enter a port between 1 and 65535.')
   }
-  const base = `http://localhost:${Number(port)}`
+  const hostname = host.trim()
+
+  if (!hostname || /[\s/:?#]/.test(hostname)) {
+    throw new Error('Enter a hostname or IPv4 address without http:// or a port.')
+  }
+
+  const base = `http://${hostname}:${Number(port)}`
   const response = await axios.get(`${base}/api/health`, { timeout: 5000 })
   if (response.data.status !== 'running')
     throw new Error('The host is not ready.')

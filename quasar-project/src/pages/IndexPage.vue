@@ -2,6 +2,13 @@
   <q-page class="q-ma-lg">
     <q-form class="fixed-center" style="width: 260px" @submit="connect">
       <q-input
+         v-model="host"
+        label="Host IP address"
+        hint="Use localhost when running on the host computer"
+        :rules="[value => !!value.trim() || 'Enter the host address']"
+      />
+
+      <q-input
         v-model="port"
         label="Port #"
         mask="#####"
@@ -33,6 +40,7 @@ import { ref } from 'vue'
 import { connectHost } from '../services/auth'
 import { useRouter } from 'vue-router'
 
+const host = ref('localhost')
 const router = useRouter()
 const port = ref('50000')
 const connecting = ref(false)
@@ -43,7 +51,7 @@ async function connect() {
   error.value = ''
 
   try {
-    await connectHost(port.value)
+    await connectHost(host.value, port.value)
     await router.push('/login')
   } catch {
     error.value =
