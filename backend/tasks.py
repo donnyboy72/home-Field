@@ -43,7 +43,7 @@ def validate_task_payload(payload):
         return "Task description must be a string"
 
     status = payload.get("status", "todo")
-    if status not in VALID_STATUSES:
+    if not isinstance(status, str) or status not in VALID_STATUSES:
         return "Task status must be todo, in_progress, review, or done"
 
     deadline = payload.get("deadline")
@@ -228,3 +228,51 @@ def restore_task(task_id):
         database.rollback()
         raise
     return get_task(task_id), None, 200
+
+
+def update_task(task_id, payload):
+    """Apply editable fields to an active task, preserving omitted values."""
+    if not isinstance(payload, dict) or not payload:
+        return None, "Provide task fields to update", 400
+
+    editable_fields = {"title", "description", "status", "deadline", "assigned_to"}
+    if set(payload) - editable_fields:
+        return None, "Request contains fields that cannot be edited", 400
+
+    database = get_database()
+    # Serialize the read and update so two partial edits cannot overwrite
+    # unrelated fields using stale values. Exceptions roll back the transaction.
+    with database:
+        database.execute("BEGIN IMMEDIATE")
+        existing = get_task(task_id)
+        if existing is None:
+            return None, "Task not found", 404
+
+        updated = {**existing, **payload}
+        error = validate_task_payload(updated)
+        if error:
+            return None, error, 400
+
+        if updated["assigned_to"] is not None:
+            user = database.execute(
+                "SELECT id FROM user WHERE id = ?", (updated["assigned_to"],)
+            ).fetchone()
+            if user is None:
+                return None, "Assigned user does not exist", 400
+
+        database.execute(
+            """
+            UPDATE task
+            SET title = ?, description = ?, status = ?, deadline = ?,
+                assigned_to = ?, updated_at = ?
+            WHERE id = ? AND is_deleted = 0
+            """,
+            (
+                updated["title"].strip(), updated["description"].strip(),
+                updated["status"], updated["deadline"],
+                updated["assigned_to"], utc_now(), task_id,
+            ),
+        )
+        task = get_task(task_id)
+
+    return task, None, 200

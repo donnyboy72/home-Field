@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash
 # Keep database setup and task validation/queries in their own modules.
 from db import init_database
 from tasks import (create_task, list_tasks, get_task, delete_task,
-                   list_deleted_tasks, restore_task)
+                   list_deleted_tasks, restore_task, update_task)
 # Build the database path relative to this file, regardless of working directory.
 from pathlib import Path
 
@@ -118,6 +118,17 @@ def create_app(test_config=None):
             return jsonify({"error": "Task not found"}), 404
 
         return jsonify({"task": task}), 200
+
+    @app.patch("/api/tasks/<int:task_id>")
+    @login_required
+    def update_task_route(task_id):
+        """Update supplied editable fields for a logged-in user."""
+        task, error, status = update_task(
+            task_id, request.get_json(silent=True)
+        )
+        if error:
+            return jsonify({"error": error}), status
+        return jsonify({"task": task}), status
 
     @app.delete("/api/tasks/<int:task_id>")
     def delete_task_route(task_id):
