@@ -89,6 +89,24 @@ def migrate_task_table(connection):
     )
 
 
+def migrate_project_table(connection):
+    """Preserve projects created before editing and soft deletion were added."""
+    existing_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(project)")
+    }
+    columns_to_add = {
+        "is_deleted": "INTEGER NOT NULL DEFAULT 0 CHECK (is_deleted IN (0, 1))",
+        "deleted_at": "TEXT",
+        "updated_at": "TEXT",
+    }
+    for column_name, definition in columns_to_add.items():
+        if column_name not in existing_columns:
+            connection.execute(f"ALTER TABLE project ADD COLUMN {column_name} {definition}")
+    connection.execute(
+        "UPDATE project SET updated_at = created_at WHERE updated_at IS NULL"
+    )
+
+
 def init_database(app):
     """Create the database, apply its schema, and register cleanup logic."""
 
@@ -113,6 +131,7 @@ def init_database(app):
         connection.executescript(schema_file.read())
 
     migrate_task_table(connection)
+    migrate_project_table(connection)
     connection.commit()
     connection.close()
 

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from db import get_database
+from projects import get_project
 
 
 # Keeping valid values in one set makes request validation easy to understand
@@ -23,7 +24,7 @@ def validate_optional_id(payload, field_name):
 
     # bool is a subclass of int in Python, so reject it explicitly. Database IDs
     # must be positive integers such as 1 or 25, never true, false, zero, or -1.
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0 or value > 9223372036854775807:
         return f"{field_name} must be a positive integer or null"
 
     return None
@@ -69,6 +70,10 @@ def create_task(payload, creator_id):
         return None, validation_error
 
     database = get_database()
+
+    project_id = payload.get("project_id")
+    if project_id is not None and get_project(project_id) is None:
+        return None, "Project does not exist"
 
     assigned_to = payload.get("assigned_to")
 
@@ -117,8 +122,15 @@ def create_task(payload, creator_id):
     return get_task(cursor.lastrowid), None
 
 
-def list_tasks():
+def list_tasks(project_id=None, unassigned=False):
     """Return active tasks in ID order, excluding soft-deleted records."""
+    condition = ""
+    parameters = ()
+    if unassigned:
+        condition = " AND project_id IS NULL"
+    elif project_id is not None:
+        condition = " AND project_id = ?"
+        parameters = (project_id,)
     rows = get_database().execute(
         """
         SELECT
@@ -127,8 +139,8 @@ def list_tasks():
             created_at, updated_at
         FROM task
         WHERE is_deleted = 0
-        ORDER BY id
-        """
+        """ + condition + " ORDER BY id",
+        parameters,
     ).fetchall()
     return [task_to_dict(row) for row in rows]
 

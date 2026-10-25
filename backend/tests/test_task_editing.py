@@ -4,9 +4,10 @@ from app import create_app
 
 
 def create(client):
+    project = client.post('/api/projects', json={'name': 'Editing'}).get_json()['project']
     return client.post('/api/tasks', json={
         'title': 'Original', 'description': 'Keep description',
-        'deadline': '2026-11-01', 'status': 'todo', 'project_id': 7,
+        'deadline': '2026-11-01', 'status': 'todo', 'project_id': project['id'],
     }).get_json()['task']
 
 

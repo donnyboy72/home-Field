@@ -32,10 +32,12 @@ def test_recovery_accepts_equivalent_timezone():
 def test_restore_twice_and_delete_again(authenticated_client):
     client = authenticated_client
     user = client.get('/api/auth/me').get_json()['user']
+    project = client.post('/api/projects', json={'name': 'Recovery'}).get_json()['project']
     original = client.post('/api/tasks', json={
         'title': 'Restore all fields', 'description': 'Keep description',
         'deadline': '2026-10-20', 'status': 'in_progress',
-        'project_id': 1, 'created_by': user['id'] + 1, 'assigned_to': user['id'],
+        'project_id': project['id'], 'created_by': user['id'] + 1,
+        'assigned_to': user['id'],
     }).get_json()['task']
     url = f"/api/tasks/{original['id']}"
     client.delete(url)

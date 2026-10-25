@@ -17,6 +17,7 @@ def test_create_and_retrieve_task(authenticated_client):
     """A task created through POST should be returned by later GET requests."""
     client = authenticated_client
     user = client.get("/api/auth/me").get_json()["user"]
+    client.post("/api/projects", json={"name": "HomeField"})
     # Send the same kind of JSON request that the Vue/Electron client will use.
     create_response = client.post(
         "/api/tasks",

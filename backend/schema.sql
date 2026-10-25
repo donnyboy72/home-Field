@@ -1,7 +1,16 @@
+-- Adding this table preserves existing tasks and their nullable project IDs.
+CREATE TABLE IF NOT EXISTS project (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0 CHECK (is_deleted IN (0, 1)),
+    deleted_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 -- The task table is the host database's authoritative task record.
--- Project and user ID columns are nullable for now because those features have
--- not been implemented yet. Foreign-key constraints can be added when the
--- project and user tables are introduced.
+-- Relationship columns remain nullable for early development. The API validates
+-- project references; adding foreign keys to existing tables needs a migration.
 CREATE TABLE IF NOT EXISTS task (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,

@@ -14,6 +14,8 @@ from werkzeug.security import generate_password_hash
 
 # Keep database setup and task validation/queries in their own modules.
 from db import init_database
+from projects import (create_project, list_projects, get_project,
+                      update_project, delete_project)
 from tasks import (create_task, list_tasks, get_task, delete_task,
                    list_deleted_tasks, restore_task, update_task)
 # Build the database path relative to this file, regardless of working directory.
@@ -105,7 +107,51 @@ def create_app(test_config=None):
     @app.get("/api/tasks")
     def list_tasks_route():
         """Return active tasks for the GUI's initial load and refresh requests."""
-        return jsonify({"tasks": list_tasks()}), 200
+        filters = request.args.getlist("project_id")
+        if not filters:
+            return jsonify({"tasks": list_tasks()}), 200
+        if len(filters) != 1:
+            return jsonify({"error": "Provide only one project_id"}), 400
+        value = filters[0]
+        if value == "unassigned":
+            return jsonify({"tasks": list_tasks(unassigned=True)}), 200
+        if (len(value) > 19 or not value.isascii() or not value.isdecimal()
+                or not 0 < int(value) <= 9223372036854775807):
+            return jsonify({"error": "project_id must be a positive integer or unassigned"}), 400
+        project_id = int(value)
+        if get_project(project_id) is None:
+            return jsonify({"error": "Project not found"}), 404
+        return jsonify({"tasks": list_tasks(project_id=project_id)}), 200
+
+    @app.get("/api/projects")
+    def list_projects_route():
+        return jsonify({"projects": list_projects()}), 200
+
+    @app.post("/api/projects")
+    @login_required
+    def create_project_route():
+        project, error = create_project(request.get_json(silent=True))
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify({"project": project}), 201
+
+    @app.put("/api/projects/<int:project_id>")
+    @app.patch("/api/projects/<int:project_id>")
+    @login_required
+    def update_project_route(project_id):
+        project, error, status = update_project(
+            project_id, request.get_json(silent=True)
+        )
+        if error:
+            return jsonify({"error": error}), status
+        return jsonify({"project": project}), status
+
+    @app.delete("/api/projects/<int:project_id>")
+    @login_required
+    def delete_project_route(project_id):
+        if not delete_project(project_id):
+            return jsonify({"error": "Project not found"}), 404
+        return "", 204
 
     # Flask converts the task ID in the URL to an integer before this runs.
     @app.get("/api/tasks/<int:task_id>")
