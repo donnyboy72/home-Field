@@ -12,7 +12,8 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-$typography-font-family : 'Georgia', bold serif !default;
+$typography-font-family:
+  system-ui, -apple-system, 'Segoe UI', sans-serif !default;
 
 $primary: #14151c;
 $secondary: #7d7e82;
