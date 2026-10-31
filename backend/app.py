@@ -5,6 +5,8 @@ Both host and client GUIs use these routes; SQLite access stays in the backend.
 
 # Flask creates the server application; jsonify builds JSON responses; request
 # exposes incoming JSON and headers; g shares data within the current request.
+import click
+from flask.cli import with_appcontext
 from flask import Flask, jsonify, request, g
 # Allow the configured browser frontend origin to read API responses.
 from flask_cors import CORS
@@ -25,6 +27,7 @@ from pathlib import Path
 from functools import wraps
 # Account and session helpers handle validation, password checks, and SQLite.
 from users import (
+    establish_host, list_users, update_user, delete_user,
     create_user,
     authenticate_user,
     create_session,
@@ -105,6 +108,7 @@ def create_app(test_config=None):
 
     # Normal task lists exclude soft-deleted tasks.
     @app.get("/api/tasks")
+    @login_required
     def list_tasks_route():
         """Return active tasks for the GUI's initial load and refresh requests."""
         filters = request.args.getlist("project_id")
@@ -124,6 +128,7 @@ def create_app(test_config=None):
         return jsonify({"tasks": list_tasks(project_id=project_id)}), 200
 
     @app.get("/api/projects")
+    @login_required
     def list_projects_route():
         return jsonify({"projects": list_projects()}), 200
 
@@ -155,6 +160,7 @@ def create_app(test_config=None):
 
     # Flask converts the task ID in the URL to an integer before this runs.
     @app.get("/api/tasks/<int:task_id>")
+    @login_required
     def get_task_route(task_id):
         """Return one active task, or a JSON error if it cannot be found."""
         task = get_task(task_id)
@@ -177,6 +183,7 @@ def create_app(test_config=None):
         return jsonify({"task": task}), status
 
     @app.delete("/api/tasks/<int:task_id>")
+    @login_required
     def delete_task_route(task_id):
         """Ask the task helper to soft-delete a task rather than erase its row."""
         # A false result means there is no active task to delete. Successful
@@ -186,11 +193,13 @@ def create_app(test_config=None):
         return "", 204
 
     @app.get("/api/tasks/deleted")
+    @login_required
     def deleted_tasks_route():
         """Return the task helper's deleted-task list for the recovery view."""
         return jsonify({"tasks": list_deleted_tasks()}), 200
 
     @app.post("/api/tasks/<int:task_id>/restore")
+    @login_required
     def restore_task_route(task_id):
         """Restore a deleted task if the helper's recovery rules allow it."""
         # The helper chooses the status for success, missing tasks, or an
@@ -244,6 +253,45 @@ def create_app(test_config=None):
         delete_session(g.session_token)
         return "", 204
 
+    @app.cli.command("setup-host")
+    @click.argument("username")
+    @with_appcontext
+    def setup_host_command(username):
+        """Designate a registered account using trusted host shell access."""
+        error = establish_host(username)
+        if error:
+            raise click.ClickException(error)
+        click.echo("Host administrator established.")
+
+    @app.get("/api/users")
+    @host_required
+    def list_users_route():
+        return jsonify({"users": list_users()}), 200
+
+    @app.patch("/api/users/<int:user_id>")
+    @host_required
+    def update_user_route(user_id):
+        user, error, status = update_user(user_id, request.get_json(silent=True))
+        if error:
+            return jsonify({"error": error}), status
+        return jsonify({"user": user}), status
+
+    @app.delete("/api/users/<int:user_id>")
+    @host_required
+    def delete_user_route(user_id):
+        error, status = delete_user(user_id)
+        if error:
+            return jsonify({"error": error}), status
+        return "", status
+
+    @app.get("/api/projects/<int:project_id>")
+    @login_required
+    def get_project_route(project_id):
+        project = get_project(project_id)
+        if project is None:
+            return jsonify({"error": "Project not found"}), 404
+        return jsonify({"project": project}), 200
+
     # Return the configured app so tests or the development entry point can use it.
     return app
 
@@ -270,7 +318,7 @@ def login_required(view):
         user = get_session_user(token)
 
         if user is None:
-            return jsonify({"error": "Session is invalid or expride"}), 401
+            return jsonify({"error": "Session is invalid or expired"}), 401
 
         # g lasts only for this request. Protected routes can use these values
         # without parsing the header or checking the session a second time.
@@ -280,6 +328,16 @@ def login_required(view):
         # Forward any URL parameters to the original route after authentication.
         return view(*args, **kwargs)
     return wrapped_view
+
+def host_required(view):
+    @login_required
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if g.user["role"] != "host":
+            return jsonify({"error": "Host administrator required"}), 403
+        return view(*args, **kwargs)
+    return wrapped_view
+
 
 if __name__ == "__main__":
     # Run only when launched directly, not when tests import create_app.

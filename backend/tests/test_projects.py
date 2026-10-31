@@ -30,6 +30,7 @@ def test_project_workflow_and_isolation(authenticated_client, app):
     assert client.get(f"/api/tasks?project_id={a['id']}").get_json()['tasks'] == [ta, restored]
 
     restarted = create_app({'TESTING': True, 'DATABASE': app.config['DATABASE']}).test_client()
+    restarted.environ_base.update(client.environ_base)
     assert restarted.get('/api/projects').get_json()['projects'] == [a, b]
     assert restarted.get(f"/api/tasks?project_id={b['id']}").get_json()['tasks'] == [tb]
 
@@ -47,7 +48,8 @@ def test_project_creation_requires_login(client):
 
 
 @pytest.mark.parametrize('value', ['', '0', '-1', 'true', 'null', '1.5', 'abc', '9223372036854775808', '9' * 5000])
-def test_invalid_project_filter(client, value):
+def test_invalid_project_filter(authenticated_client, value):
+    client = authenticated_client
     response = client.get('/api/tasks', query_string={'project_id': value})
     assert response.status_code == 400
     assert 'error' in response.get_json()
@@ -75,6 +77,7 @@ def test_edit_project(authenticated_client, app, method):
     for field in ('id', 'created_at', 'is_deleted', 'deleted_at'):
         assert edited[field] == original[field]
     restarted = create_app({'TESTING': True, 'DATABASE': app.config['DATABASE']}).test_client()
+    restarted.environ_base.update(client.environ_base)
     assert restarted.get('/api/projects').get_json()['projects'] == [edited]
 
 
@@ -124,6 +127,7 @@ def test_project_delete_preserves_tasks(authenticated_client, app):
         assert row['deleted_at'] == row['updated_at']
         assert row['name'] == project['name']
     restarted = create_app({'TESTING': True, 'DATABASE': app.config['DATABASE']}).test_client()
+    restarted.environ_base.update(client.environ_base)
     assert restarted.get('/api/projects').get_json()['projects'] == [other]
     assert restarted.get('/api/tasks').get_json()['tasks'] == [task]
 
@@ -164,6 +168,9 @@ def test_project_migration_preserves_existing_data(tmp_path):
     # Running initialization twice must be safe and preserve migrated values.
     for _ in range(2):
         client = create_app(config).test_client()
+        client.post('/api/auth/signup', json={'username': 'migration', 'password': 'migration-password'})
+        token = client.post('/api/auth/login', json={'username': 'migration', 'password': 'migration-password'}).get_json()['token']
+        client.environ_base['HTTP_AUTHORIZATION'] = f'Bearer {token}'
         project = client.get('/api/projects').get_json()['projects'][0]
         assert project == {
             'id': 7, 'name': 'Existing', 'created_at': '2026-10-20T00:00:00+00:00',

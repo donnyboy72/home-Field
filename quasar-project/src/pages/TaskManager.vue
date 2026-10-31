@@ -8,6 +8,11 @@
         >
         <div class="col-auto"
           ><q-btn
+            v-if="signedInUser?.role === 'host'"
+            flat
+            label="Manage users"
+            to="/users"
+            no-caps /><q-btn
             unelevated
             color="primary"
             icon="add"
@@ -392,7 +397,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { clearSession } from '../services/auth'
+import { clearSession, signedInUser } from '../services/auth'
 import * as api from '../services/tasks'
 
 const router = useRouter()

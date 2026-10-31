@@ -24,6 +24,7 @@ def test_partial_edit_persists(authenticated_client, app):
         if field not in ('title', 'updated_at'):
             assert edited[field] == original[field]
     restarted = create_app({'TESTING': True, 'DATABASE': app.config['DATABASE']}).test_client()
+    restarted.environ_base.update(client.environ_base)
     assert restarted.get(url).get_json()['task'] == edited
 
 

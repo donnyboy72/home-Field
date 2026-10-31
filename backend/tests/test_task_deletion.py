@@ -16,6 +16,7 @@ def test_delete_restore_and_restart(authenticated_client, app):
     assert client.delete(url).status_code == 404
     assert client.get('/api/tasks/deleted').get_json()['tasks'][0]['deleted_at'] == deleted['deleted_at']
     restarted = create_app({'TESTING': True, 'DATABASE': app.config['DATABASE']}).test_client()
+    restarted.environ_base.update(client.environ_base)
     assert restarted.get(url).status_code == 404
     response = restarted.post(url + '/restore')
     assert response.status_code == 200

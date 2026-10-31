@@ -132,6 +132,11 @@ def init_database(app):
 
     migrate_task_table(connection)
     migrate_project_table(connection)
+    # Existing accounts remain ordinary users; host setup is a local CLI action.
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(user)")}
+    if "role" not in columns:
+        connection.execute("ALTER TABLE user ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'host'))")
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS one_host ON user(role) WHERE role = 'host'")
     connection.commit()
     connection.close()
 

@@ -28,6 +28,7 @@ def user_to_dict(row):
     return {
         "id": row["id"],
         "username": row["username"],
+        "role": row["role"],
         "created_at": row["created_at"],
     }
 
@@ -55,6 +56,9 @@ def create_user(payload):
     # Reject non-object JSON before trying to read registration fields.
     if not isinstance(payload, dict):
         return None, "User data must be a JSON object", 400
+
+    if "role" in payload:
+        return None, "Registration cannot choose a role", 400
 
     # Normalize only the username. Password spaces and case remain significant.
     username = normalize_username(payload.get("username"))
@@ -89,7 +93,7 @@ def create_user(payload):
 
     # Read back the database-assigned ID and return only public account fields.
     row = database.execute(
-        "SELECT id, username, created_at FROM user WHERE id = ?",
+        "SELECT id, username, role, created_at FROM user WHERE id = ?",
         (cursor.lastrowid,),
     ).fetchone()
 
@@ -161,7 +165,7 @@ def get_session_user(token):
     # in the same query, avoiding a separate account lookup.
     row = get_database().execute(
         """
-        SELECT user.id, user.username, user.created_at, session.expires_at
+        SELECT user.id, user.username, user.role, user.created_at, session.expires_at
         FROM session
         JOIN user ON user.id = session.user_id
         WHERE session.token_hash = ?
@@ -194,3 +198,67 @@ def delete_session(token):
         (hash_token(token),),
     )
     database.commit()
+
+
+def establish_host(username):
+    """Local CLI only: designate one existing account, never replace a host."""
+    database = get_database()
+    with database:
+        database.execute("BEGIN IMMEDIATE")
+        if database.execute("SELECT 1 FROM user WHERE role = 'host'").fetchone():
+            return "A host administrator already exists"
+        cursor = database.execute(
+            "UPDATE user SET role = 'host' WHERE username = ?",
+            (normalize_username(username),),
+        )
+        if not cursor.rowcount:
+            return "Register this account first"
+    return None
+
+
+def list_users():
+    return [user_to_dict(row) for row in get_database().execute(
+        "SELECT id, username, role, created_at FROM user ORDER BY id"
+    )]
+
+
+def update_user(user_id, payload):
+    """Host account management edits usernames, never roles or passwords."""
+    if (not isinstance(payload, dict) or set(payload) != {"username"}):
+        return None, "Only username can be edited", 400
+    username = normalize_username(payload["username"])
+    if username is None or not re.fullmatch(r"[a-z0-9_]{3,30}", username):
+        return None, "Username must be 3-30 lowercase letters, numbers, or underscores", 400
+    if user_id > 9223372036854775807:
+        return None, "User not found", 404
+    database = get_database()
+    try:
+        with database:
+            cursor = database.execute("UPDATE user SET username = ? WHERE id = ?", (username, user_id))
+            if not cursor.rowcount:
+                return None, "User not found", 404
+            row = database.execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
+    except sqlite3.IntegrityError:
+        return None, "Username is already in use", 409
+    return user_to_dict(row), None, 200
+
+
+def delete_user(user_id):
+    """Atomically revoke sessions and assignments, preserving authored records."""
+    if user_id > 9223372036854775807:
+        return "User not found", 404
+    database = get_database()
+    with database:
+        database.execute("BEGIN IMMEDIATE")
+        row = database.execute("SELECT role FROM user WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            return "User not found", 404
+        if row["role"] == "host":
+            return "The host administrator cannot be deleted", 403
+        database.execute("DELETE FROM session WHERE user_id = ?", (user_id,))
+        database.execute(
+            "UPDATE task SET assigned_to = NULL, updated_at = ? WHERE assigned_to = ?",
+            (datetime.now(timezone.utc).isoformat(), user_id),
+        )
+        database.execute("DELETE FROM user WHERE id = ?", (user_id,))
+    return None, 204

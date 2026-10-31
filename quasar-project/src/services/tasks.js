@@ -46,3 +46,14 @@ export async function renameProject(id, name) {
 export async function deleteProject(id) {
   await axios.delete(`/api/projects/${id}`, requestConfig())
 }
+
+export async function loadUsers() {
+  return (await axios.get('/api/users', requestConfig())).data.users
+}
+export async function renameUser(id, username) {
+  return (await axios.patch(`/api/users/${id}`, { username }, requestConfig()))
+    .data.user
+}
+export async function deleteUser(id) {
+  await axios.delete(`/api/users/${id}`, requestConfig())
+}

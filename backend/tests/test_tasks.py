@@ -125,7 +125,8 @@ def test_create_task_rejects_invalid_optional_id(authenticated_client):
     }
 
 
-def test_unknown_task_returns_not_found(client):
+def test_unknown_task_returns_not_found(authenticated_client):
+    client = authenticated_client
     """Requesting an ID that is not in SQLite should return HTTP 404."""
     response = client.get("/api/tasks/999")
 
@@ -161,7 +162,10 @@ def test_existing_minimal_database_is_migrated(tmp_path):
         }
     )
 
-    response = application.test_client().get("/api/tasks")
+    client = application.test_client()
+    client.post('/api/auth/signup', json={'username': 'migration', 'password': 'migration-password'})
+    token = client.post('/api/auth/login', json={'username': 'migration', 'password': 'migration-password'}).get_json()['token']
+    response = client.get('/api/tasks', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 200
 
     migrated_task = response.get_json()["tasks"][0]
