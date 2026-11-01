@@ -5,11 +5,16 @@
     <q-banner v-if="error" role="alert" class="bg-red-1 q-mb-md">{{
       error
     }}</q-banner>
-    <template v-if="signedInUser?.role === 'host'">
-      <p
+    <template v-if="canManageUsers">
+      <p v-if="isHost"
         >Register new accounts through Sign up. Deleting an account ends its
         sessions and clears task assignments; its tasks and projects remain.</p
       >
+      <p v-else
+        >Managers can view accounts and edit usernames except the host
+        administrator's. Only the host can delete accounts or change roles.</p
+      >
+      <q-btn flat label="Refresh users" :disable="busy" @click="reload" />
       <q-list bordered separator>
         <q-item v-for="user in users" :key="user.id">
           <q-item-section>
@@ -18,6 +23,7 @@
               {{ user.id }}</q-item-label
             >
             <q-input
+              v-if="canEdit(user)"
               v-model="names[user.id]"
               label="Username"
               :disable="busy"
@@ -25,13 +31,23 @@
           </q-item-section>
           <q-item-section side>
             <q-btn
+              v-if="isHost && user.role !== 'host'"
               flat
+              :label="
+                user.role === 'manager' ? 'Remove manager role' : 'Make manager'
+              "
+              :disable="busy"
+              @click="changeRole(user)"
+            />
+            <q-btn
+              flat
+              v-if="canEdit(user)"
               label="Save username"
               :disable="busy"
               @click="rename(user)"
             />
             <q-btn
-              v-if="user.role !== 'host'"
+              v-if="isHost && user.role !== 'host'"
               flat
               color="negative"
               label="Delete user"
@@ -68,16 +84,47 @@
   </q-page>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { signedInUser, checkSession } from '../services/auth'
-import { loadUsers, renameUser, deleteUser } from '../services/tasks'
+import {
+  loadUsers,
+  renameUser,
+  deleteUser,
+  setUserRole
+} from '../services/tasks'
 const users = ref([]),
   names = ref({}),
   error = ref(''),
   busy = ref(false),
   pending = ref(null)
+const isHost = computed(() => signedInUser.value?.role === 'host')
+const canManageUsers = computed(() =>
+  ['host', 'manager'].includes(signedInUser.value?.role)
+)
+const canEdit = user =>
+  isHost.value || (canManageUsers.value && user.role !== 'host')
+let timer
 function report(err) {
   error.value = err.response?.data?.error || err.message
+}
+async function changeRole(user) {
+  busy.value = true
+  error.value = ''
+  try {
+    await setUserRole(user.id, user.role === 'manager' ? 'user' : 'manager')
+    await refresh()
+  } catch (err) {
+    report(err)
+  } finally {
+    busy.value = false
+  }
+}
+async function reload() {
+  try {
+    await refresh()
+  } catch (err) {
+    report(err)
+  }
 }
 async function refresh() {
   await checkSession()
@@ -111,11 +158,23 @@ async function remove() {
     busy.value = false
   }
 }
-onMounted(async () => {
-  try {
-    await refresh()
-  } catch (err) {
-    report(err)
-  }
+onMounted(() => {
+  reload()
+  timer = setInterval(async () => {
+    if (busy.value) return
+    try {
+      await checkSession()
+      if (!canManageUsers.value) {
+        users.value = []
+        pending.value = null
+        error.value = 'Host administrator or manager required'
+      }
+    } catch (err) {
+      users.value = []
+      pending.value = null
+      report(err)
+    }
+  }, 5000)
 })
+onUnmounted(() => clearInterval(timer))
 </script>

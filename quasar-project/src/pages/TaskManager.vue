@@ -8,7 +8,7 @@
         >
         <div class="col-auto"
           ><q-btn
-            v-if="signedInUser?.role === 'host'"
+            v-if="['host', 'manager'].includes(signedInUser?.role)"
             flat
             label="Manage users"
             to="/users"
@@ -397,7 +397,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { clearSession, signedInUser } from '../services/auth'
+import { clearSession, signedInUser, checkSession } from '../services/auth'
 import * as api from '../services/tasks'
 
 const router = useRouter()
@@ -491,7 +491,8 @@ async function refresh(manual = false) {
     const [active, trash, projectList] = await Promise.all([
       api.loadTasks(),
       api.loadDeletedTasks(),
-      api.loadProjects()
+      api.loadProjects(),
+      checkSession()
     ])
     if (!alive || sequence !== refreshSequence) return
     tasks.value = active

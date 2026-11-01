@@ -57,3 +57,8 @@ export async function renameUser(id, username) {
 export async function deleteUser(id) {
   await axios.delete(`/api/users/${id}`, requestConfig())
 }
+
+export async function setUserRole(id, role) {
+  return (await axios.patch(`/api/users/${id}/role`, { role }, requestConfig()))
+    .data.user
+}
