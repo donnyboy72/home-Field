@@ -13,6 +13,7 @@
             label="Manage users"
             to="/users"
             no-caps /><q-btn
+            v-if="isStaff"
             unelevated
             color="primary"
             icon="add"
@@ -60,6 +61,7 @@
               dense
               round
               icon="add"
+              v-if="isStaff"
               aria-label="Create project"
               @click="openProject()"
           /></div>
@@ -71,6 +73,7 @@
             <span>{{ tasks.length }}</span></button
           >
           <button
+            v-if="isStaff"
             class="project-link"
             :class="{ selected: filter === 'unassigned' }"
             @click="selectProject('unassigned')"
@@ -103,9 +106,12 @@
               round
               size="sm"
               icon="more_horiz"
+              v-if="isStaff"
               :aria-label="`Options for ${project.name}`"
               ><q-menu
                 ><q-list dense style="min-width: 130px"
+                  ><q-item clickable v-close-popup @click="openAccess(project)"
+                    ><q-item-section>Manage access</q-item-section></q-item
                   ><q-item clickable v-close-popup @click="openProject(project)"
                     ><q-item-section>Rename</q-item-section></q-item
                   ><q-item
@@ -149,6 +155,7 @@
               indicator-color="primary"
               align="left"
               ><q-tab name="active" label="Active" /><q-tab
+                v-if="isStaff"
                 name="deleted"
                 :label="`Deleted (${deleted.length})`" /></q-tabs
             ><q-input
@@ -181,7 +188,9 @@
                 ? 'Try another search.'
                 : tab === 'deleted'
                   ? 'Deleted tasks will appear here.'
-                  : 'Create a task to get started.'
+                  : isStaff
+                    ? 'Create a task to get started.'
+                    : 'Tasks will appear when the host or a manager grants you project access and adds tasks.'
             }}</span></div
           >
           <div v-else class="task-list">
@@ -232,6 +241,7 @@
                     flat
                     dense
                     round
+                    v-if="isStaff"
                     icon="delete_outline"
                     :disable="busy"
                     aria-label="Delete task"
@@ -302,13 +312,20 @@
               label="Project"
               :options="projectOptions"
               emit-value
-              map-options /><q-input
+              map-options /><q-select
               v-model="draft.assigned_to"
               outlined
-              type="number"
-              min="1"
-              label="Assigned user ID (optional)"
-              hint="Enter the ID of an existing user" /></q-card-section
+              clearable
+              emit-value
+              map-options
+              :options="
+                assignees.map(user => ({
+                  label: user.username,
+                  value: user.id
+                }))
+              "
+              label="Assigned to (optional)"
+              hint="Only users with project access can be assigned" /></q-card-section
           ><q-card-actions align="right" class="q-pa-md"
             ><q-btn
               flat
@@ -391,16 +408,52 @@
             :loading="busy"
             @click="runDelete" /></q-card-actions></q-card
     ></q-dialog>
+    <q-dialog v-model="accessDialog">
+      <q-card class="dialog-card">
+        <q-card-section class="text-h6"
+          >Access to {{ accessProject?.name }}</q-card-section
+        >
+        <q-card-section
+          >Host and managers automatically have access to every
+          project.</q-card-section
+        >
+        <q-card-section v-if="error" class="text-negative" role="alert">{{
+          error
+        }}</q-card-section>
+        <q-card-section>
+          <p v-if="!accessUsers.length">No ordinary users registered.</p>
+          <q-toggle
+            v-for="user in accessUsers"
+            :key="user.id"
+            :label="user.username"
+            :model-value="memberIds.includes(user.id)"
+            :disable="busy"
+            @update:model-value="value => changeAccess(user, value)"
+          />
+        </q-card-section>
+        <q-card-actions align="right"
+          ><q-btn flat label="Close" v-close-popup
+        /></q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { clearSession, signedInUser, checkSession } from '../services/auth'
 import * as api from '../services/tasks'
 
 const router = useRouter()
+const isStaff = computed(() =>
+  ['host', 'manager'].includes(signedInUser.value?.role)
+)
+const assignees = ref([])
+const accessDialog = ref(false),
+  accessProject = ref(null),
+  accessUsers = ref([]),
+  memberIds = ref([])
 const tasks = ref([]),
   deleted = ref([]),
   projects = ref([])
@@ -488,13 +541,25 @@ async function refresh(manual = false) {
   const sequence = ++refreshSequence
   if (manual || !loaded.value) loading.value = true
   try {
+    await checkSession()
     const [active, trash, projectList] = await Promise.all([
       api.loadTasks(),
-      api.loadDeletedTasks(),
-      api.loadProjects(),
-      checkSession()
+      isStaff.value ? api.loadDeletedTasks() : Promise.resolve([]),
+      api.loadProjects()
     ])
     if (!alive || sequence !== refreshSequence) return
+    if (!isStaff.value) {
+      tab.value = 'active'
+      projectDialog.value = false
+      accessDialog.value = false
+      confirmDialog.value = false
+      if (!editingTask.value) taskDialog.value = false
+    }
+    if (
+      editingTask.value &&
+      !active.some(task => task.id === editingTask.value.id)
+    )
+      taskDialog.value = false
     tasks.value = active
     deleted.value = trash
     projects.value = projectList
@@ -512,6 +577,7 @@ async function refresh(manual = false) {
   }
 }
 function openTask(task = null) {
+  if (!task && !isStaff.value) return
   editingTask.value = task
   draft.value = {
     title: task?.title || '',
@@ -521,7 +587,7 @@ function openTask(task = null) {
     project_id:
       task?.project_id ??
       (typeof filter.value === 'number' ? filter.value : null),
-    assigned_to: task?.assigned_to == null ? '' : String(task.assigned_to)
+    assigned_to: task?.assigned_to ?? null
   }
   taskDialog.value = true
 }
@@ -632,6 +698,60 @@ async function saveProject() {
       )
     else await api.createProject(projectDraft.value.trim())
     projectDialog.value = false
+    await refresh(true)
+  } catch (err) {
+    showError(err)
+  } finally {
+    busy.value = false
+  }
+}
+watch([() => draft.value.project_id, taskDialog], async ([projectId, open]) => {
+  assignees.value = []
+  if (!open) return
+  try {
+    const users =
+      projectId != null &&
+      projects.value.some(project => project.id === projectId)
+        ? await api.loadProjectAssignees(projectId)
+        : isStaff.value
+          ? (await api.loadUsers()).filter(user =>
+              ['host', 'manager'].includes(user.role)
+            )
+          : []
+    if (taskDialog.value && draft.value.project_id === projectId)
+      assignees.value = users
+  } catch (err) {
+    showError(err)
+  }
+})
+async function openAccess(project) {
+  error.value = ''
+  busy.value = true
+  try {
+    const [users, members] = await Promise.all([
+      api.loadUsers(),
+      api.loadProjectMembers(project.id)
+    ])
+    accessProject.value = project
+    accessUsers.value = users.filter(user => user.role === 'user')
+    memberIds.value = members.map(user => user.id)
+    accessDialog.value = true
+  } catch (err) {
+    showError(err)
+  } finally {
+    busy.value = false
+  }
+}
+async function changeAccess(user, grant) {
+  if (busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    if (grant) await api.grantProjectAccess(accessProject.value.id, user.id)
+    else await api.revokeProjectAccess(accessProject.value.id, user.id)
+    memberIds.value = (
+      await api.loadProjectMembers(accessProject.value.id)
+    ).map(user => user.id)
     await refresh(true)
   } catch (err) {
     showError(err)

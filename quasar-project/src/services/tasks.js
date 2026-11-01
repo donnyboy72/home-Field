@@ -62,3 +62,25 @@ export async function setUserRole(id, role) {
   return (await axios.patch(`/api/users/${id}/role`, { role }, requestConfig()))
     .data.user
 }
+
+export async function loadProjectAssignees(id) {
+  return (await axios.get(`/api/projects/${id}/assignees`, requestConfig()))
+    .data.users
+}
+export async function loadProjectMembers(id) {
+  return (await axios.get(`/api/projects/${id}/members`, requestConfig())).data
+    .users
+}
+export async function grantProjectAccess(projectId, userId) {
+  await axios.put(
+    `/api/projects/${projectId}/members/${userId}`,
+    null,
+    requestConfig()
+  )
+}
+export async function revokeProjectAccess(projectId, userId) {
+  await axios.delete(
+    `/api/projects/${projectId}/members/${userId}`,
+    requestConfig()
+  )
+}
