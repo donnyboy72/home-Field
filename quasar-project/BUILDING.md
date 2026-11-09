@@ -23,10 +23,30 @@ Run builds one at a time. Output is under `dist/electron/`:
 
 For an Intel Mac, run `npx quasar build -m electron -T darwin -A x64`.
 
-Open the application, enter the host's LAN address and Flask port, and connect.
+Install the host dependencies with `python -m pip install -r backend/requirements.txt`
+and start Flask from the repository root with `python backend/app.py`.
+This startup advertises HomeField on the local network; `flask run` does not.
+
+Open the application and choose your host from **Available hosts**. It searches
+for four seconds on opening the connection screen; **Search again** repeats the
+search. Multiple network interfaces may show more than one address for a host.
+You still choose the host explicitly before login; discovery never sends passwords
+or tokens and does not establish trust in a server or its certificate.
+
+If no host appears, enter the host's LAN address and Flask port manually.
 On the host itself, `localhost` works. Check login, task creation/retrieval, and
 five-second refresh between computers. The default connection-screen port is
 50000; enter the actual port used by Flask.
+
+Allow local-network access if your operating system prompts. Discovery uses mDNS
+(UDP 5353); Flask uses TCP 50000. Both machines must be on the same reachable LAN.
+School/guest Wi-Fi may block multicast or communication between devices; manual
+entry helps only when normal TCP access is allowed. After the host changes networks
+or its IP changes, restart Flask to advertise its current addresses, then search
+again. Browser-only builds retain manual entry because discovery runs in Electron.
+
+Discovery tests: `python -m pytest -q backend/tests/test_discovery.py` and,
+from `quasar-project/`, `node --test src-electron/tests/discovery.test.js`.
 
 The Electron main process limits API requests to the selected host and `/api/`
 paths. Chromium web security remains enabled. The existing manual connection

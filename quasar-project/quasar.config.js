@@ -202,6 +202,12 @@ export default defineConfig(ctx => {
         name: 'HomeField',
         // Stable macOS application identity; this does not enable code signing.
         appBundleId: 'edu.homefield.desktop',
+        // Explain macOS local-network permission when browsing for Flask hosts.
+        extendInfo: {
+          NSLocalNetworkUsageDescription:
+            'HomeField finds and connects to your task host on the local network.',
+          NSBonjourServices: ['_homefield._tcp']
+        },
         // Optional local runtime cache for environments with restricted downloads.
         ...(process.env.HOMEFIELD_ELECTRON_ZIP_DIR
           ? { electronZipDir: process.env.HOMEFIELD_ELECTRON_ZIP_DIR }

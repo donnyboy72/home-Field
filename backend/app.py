@@ -383,8 +383,13 @@ def host_required(view):
 
 
 if __name__ == "__main__":
+    from discovery import advertise_host
+
     # Run only when launched directly, not when tests import create_app.
     # Listening on all interfaces allows LAN clients to use the host's actual
-    # private IP and port 50000. Debug mode is for trusted development only.
+    # private IP and port 50000.
     app = create_app()
-    app.run(host="0.0.0.0", port=50000,debug=True)  # Reload the development server when code changes.
+    # Disable the reloader so only one process advertises this host. Discovery is
+    # outside create_app, so clients and Flask tests never start an advertiser.
+    with advertise_host(50000):
+        app.run(host="0.0.0.0", port=50000, debug=False, use_reloader=False)

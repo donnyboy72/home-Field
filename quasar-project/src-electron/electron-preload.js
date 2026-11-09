@@ -29,8 +29,9 @@ import { quasarRuntime } from '#q-app/electron/preload'
  * Can be used in the renderer process through `window.quasarRuntime`
  */
 contextBridge.exposeInMainWorld('quasarRuntime', quasarRuntime)
-// Expose only host selection to Vue, rather than giving it unrestricted IPC.
+// Expose host selection and bounded discovery, rather than unrestricted IPC.
 // invoke returns a promise so connection checks wait for the main process's policy.
 contextBridge.exposeInMainWorld('homefield', {
+  discoverHosts: () => ipcRenderer.invoke('homefield:discover-hosts'),
   selectHost: address => ipcRenderer.invoke('homefield:select-host', address)
 })

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
+import { discoverHosts } from './discovery.js'
 import {
   registerQuasarRuntime,
   resolveElectronAssetsPath
@@ -32,6 +33,21 @@ async function createWindow() {
   // Keep remote pages from replacing the bundled frontend or opening new windows.
   contents.setWindowOpenHandler(() => ({ action: 'deny' }))
   contents.on('will-navigate', event => event.preventDefault())
+
+  let pendingDiscovery = null
+  ipcMain.removeHandler('homefield:discover-hosts')
+  ipcMain.handle('homefield:discover-hosts', event => {
+    if (event.sender !== contents || event.senderFrame !== contents.mainFrame) {
+      throw new Error('Invalid discovery request')
+    }
+    // Repeated clicks share one bounded scan instead of opening extra sockets.
+    if (!pendingDiscovery) {
+      pendingDiscovery = discoverHosts().finally(() => {
+        pendingDiscovery = null
+      })
+    }
+    return pendingDiscovery
+  })
 
   // The renderer can select a backend, but cannot access Electron or Node APIs.
   // Replace the previous handler when macOS recreates a closed window.
