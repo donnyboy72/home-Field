@@ -84,8 +84,9 @@ def auth_headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture
-def authenticated_client(client, auth_headers):
-    """Return the test client with its session header included by default."""
+def authenticated_client(client, auth_headers, app):
+    """Use a host session for existing full-access task/project regression tests."""
+    assert app.test_cli_runner().invoke(args=['setup-host', 'dummy_user']).exit_code == 0
     # Depending on auth_headers runs signup and login before this fixture.
     # Flask's test environment uses HTTP_AUTHORIZATION for the Authorization
     # request header, so subsequent requests need not supply it each time.

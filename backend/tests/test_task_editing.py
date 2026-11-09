@@ -35,6 +35,7 @@ def test_edit_all_fields_and_clear_nullable_values(authenticated_client):
     }).get_json()['user']
     original = create(client)
     url = f"/api/tasks/{original['id']}"
+    assert client.put(f"/api/projects/{original['project_id']}/members/{user['id']}").status_code == 204
     patch = {'title': 'Changed', 'description': 'Details', 'status': 'done',
              'deadline': '2026-12-01', 'assigned_to': user['id']}
     response = client.patch(url, json=patch)

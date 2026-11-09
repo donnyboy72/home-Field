@@ -21,10 +21,15 @@ export async function connectHost(host, port) {
   const hostname = host.trim()
 
   if (!hostname || /[\s/:?#]/.test(hostname)) {
-    throw new Error('Enter a hostname or IPv4 address without http:// or a port.')
+    throw new Error(
+      'Enter a hostname or IPv4 address without http:// or a port.'
+    )
   }
 
   const base = `http://${hostname}:${Number(port)}`
+  // Electron must allow the selected host before the health request is sent.
+  // Browser builds have no preload bridge and continue using normal Flask CORS.
+  if (window.homefield) await window.homefield.selectHost(base)
   const response = await axios.get(`${base}/api/health`, { timeout: 5000 })
   if (response.data.status !== 'running')
     throw new Error('The host is not ready.')
@@ -55,6 +60,8 @@ export async function checkSession() {
   const token = localStorage.getItem('token')
   if (!token) throw new Error('Please log in.')
   try {
+    // The saved address survives restarts; Electron's in-memory allowance does not.
+    if (window.homefield) await window.homefield.selectHost(baseUrl())
     const response = await axios.get(`${baseUrl()}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
       timeout: 5000

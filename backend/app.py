@@ -17,7 +17,8 @@ from werkzeug.security import generate_password_hash
 # Keep database setup and task validation/queries in their own modules.
 from db import init_database
 from projects import (create_project, list_projects, get_project,
-                      update_project, delete_project)
+                      update_project, delete_project, can_access_project,
+                      project_assignees, list_project_members, set_project_membership)
 from tasks import (create_task, list_tasks, get_task, delete_task,
                    list_deleted_tasks, restore_task, update_task)
 # Build the database path relative to this file, regardless of working directory.
@@ -27,7 +28,7 @@ from pathlib import Path
 from functools import wraps
 # Account and session helpers handle validation, password checks, and SQLite.
 from users import (
-    establish_host, list_users, update_user, delete_user,
+    establish_host, list_users, update_user, delete_user, set_user_role,
     create_user,
     authenticate_user,
     create_session,
@@ -87,7 +88,7 @@ def create_app(test_config=None):
 
     # Create a task from the JSON object supplied in the request body.
     @app.post("/api/tasks")
-    @login_required
+    @staff_required
     def create_task_route():
         """Validate incoming JSON through the task helper and return the result."""
         # silent=True returns None instead of raising an error for invalid JSON.
@@ -113,27 +114,27 @@ def create_app(test_config=None):
         """Return active tasks for the GUI's initial load and refresh requests."""
         filters = request.args.getlist("project_id")
         if not filters:
-            return jsonify({"tasks": list_tasks()}), 200
+            return jsonify({"tasks": list_tasks(g.user)}), 200
         if len(filters) != 1:
             return jsonify({"error": "Provide only one project_id"}), 400
         value = filters[0]
         if value == "unassigned":
-            return jsonify({"tasks": list_tasks(unassigned=True)}), 200
+            return jsonify({"tasks": list_tasks(g.user, unassigned=True)}), 200
         if (len(value) > 19 or not value.isascii() or not value.isdecimal()
                 or not 0 < int(value) <= 9223372036854775807):
             return jsonify({"error": "project_id must be a positive integer or unassigned"}), 400
         project_id = int(value)
-        if get_project(project_id) is None:
+        if get_project(project_id) is None or not can_access_project(project_id, g.user):
             return jsonify({"error": "Project not found"}), 404
-        return jsonify({"tasks": list_tasks(project_id=project_id)}), 200
+        return jsonify({"tasks": list_tasks(g.user, project_id=project_id)}), 200
 
     @app.get("/api/projects")
     @login_required
     def list_projects_route():
-        return jsonify({"projects": list_projects()}), 200
+        return jsonify({"projects": list_projects(g.user)}), 200
 
     @app.post("/api/projects")
-    @login_required
+    @staff_required
     def create_project_route():
         project, error = create_project(request.get_json(silent=True))
         if error:
@@ -142,7 +143,7 @@ def create_app(test_config=None):
 
     @app.put("/api/projects/<int:project_id>")
     @app.patch("/api/projects/<int:project_id>")
-    @login_required
+    @staff_required
     def update_project_route(project_id):
         project, error, status = update_project(
             project_id, request.get_json(silent=True)
@@ -152,7 +153,7 @@ def create_app(test_config=None):
         return jsonify({"project": project}), status
 
     @app.delete("/api/projects/<int:project_id>")
-    @login_required
+    @staff_required
     def delete_project_route(project_id):
         if not delete_project(project_id):
             return jsonify({"error": "Project not found"}), 404
@@ -166,7 +167,7 @@ def create_app(test_config=None):
         task = get_task(task_id)
 
         # Return a standard not-found response when the requested row is absent.
-        if task is None:
+        if task is None or not can_access_project(task["project_id"], g.user):
             return jsonify({"error": "Task not found"}), 404
 
         return jsonify({"task": task}), 200
@@ -176,14 +177,14 @@ def create_app(test_config=None):
     def update_task_route(task_id):
         """Update supplied editable fields for a logged-in user."""
         task, error, status = update_task(
-            task_id, request.get_json(silent=True)
+            task_id, request.get_json(silent=True), g.user
         )
         if error:
             return jsonify({"error": error}), status
         return jsonify({"task": task}), status
 
     @app.delete("/api/tasks/<int:task_id>")
-    @login_required
+    @staff_required
     def delete_task_route(task_id):
         """Ask the task helper to soft-delete a task rather than erase its row."""
         # A false result means there is no active task to delete. Successful
@@ -193,13 +194,13 @@ def create_app(test_config=None):
         return "", 204
 
     @app.get("/api/tasks/deleted")
-    @login_required
+    @staff_required
     def deleted_tasks_route():
         """Return the task helper's deleted-task list for the recovery view."""
         return jsonify({"tasks": list_deleted_tasks()}), 200
 
     @app.post("/api/tasks/<int:task_id>/restore")
-    @login_required
+    @staff_required
     def restore_task_route(task_id):
         """Restore a deleted task if the helper's recovery rules allow it."""
         # The helper chooses the status for success, missing tasks, or an
@@ -264,14 +265,22 @@ def create_app(test_config=None):
         click.echo("Host administrator established.")
 
     @app.get("/api/users")
-    @host_required
+    @staff_required
     def list_users_route():
         return jsonify({"users": list_users()}), 200
 
     @app.patch("/api/users/<int:user_id>")
-    @host_required
+    @staff_required
     def update_user_route(user_id):
-        user, error, status = update_user(user_id, request.get_json(silent=True))
+        user, error, status = update_user(user_id, request.get_json(silent=True), g.user["role"])
+        if error:
+            return jsonify({"error": error}), status
+        return jsonify({"user": user}), status
+
+    @app.patch("/api/users/<int:user_id>/role")
+    @host_required
+    def set_user_role_route(user_id):
+        user, error, status = set_user_role(user_id, request.get_json(silent=True))
         if error:
             return jsonify({"error": error}), status
         return jsonify({"user": user}), status
@@ -288,9 +297,32 @@ def create_app(test_config=None):
     @login_required
     def get_project_route(project_id):
         project = get_project(project_id)
-        if project is None:
+        if project is None or not can_access_project(project_id, g.user):
             return jsonify({"error": "Project not found"}), 404
         return jsonify({"project": project}), 200
+
+    @app.get("/api/projects/<int:project_id>/assignees")
+    @login_required
+    def project_assignees_route(project_id):
+        if get_project(project_id) is None or not can_access_project(project_id, g.user):
+            return jsonify({"error": "Project not found"}), 404
+        return jsonify({"users": project_assignees(project_id)}), 200
+
+    @app.get("/api/projects/<int:project_id>/members")
+    @staff_required
+    def project_members_route(project_id):
+        if get_project(project_id) is None:
+            return jsonify({"error": "Project not found"}), 404
+        return jsonify({"users": list_project_members(project_id)}), 200
+
+    @app.put("/api/projects/<int:project_id>/members/<int:user_id>")
+    @app.delete("/api/projects/<int:project_id>/members/<int:user_id>")
+    @staff_required
+    def project_membership_route(project_id, user_id):
+        error, status = set_project_membership(project_id, user_id, request.method == "PUT")
+        if error:
+            return jsonify({"error": error}), status
+        return "", status
 
     # Return the configured app so tests or the development entry point can use it.
     return app
@@ -328,6 +360,17 @@ def login_required(view):
         # Forward any URL parameters to the original route after authentication.
         return view(*args, **kwargs)
     return wrapped_view
+
+def staff_required(view):
+    """Allow staff operations, checking the current database role."""
+    @login_required
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if g.user["role"] not in {"host", "manager"}:
+            return jsonify({"error": "Host administrator or manager required"}), 403
+        return view(*args, **kwargs)
+    return wrapped_view
+
 
 def host_required(view):
     @login_required

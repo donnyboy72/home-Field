@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from db import get_database
-from projects import get_project
+from projects import get_project, can_access_project, can_assign_user, is_staff
 
 
 # Keeping valid values in one set makes request validation easy to understand
@@ -71,58 +71,62 @@ def create_task(payload, creator_id):
 
     database = get_database()
 
-    project_id = payload.get("project_id")
-    if project_id is not None and get_project(project_id) is None:
-        return None, "Project does not exist"
+    with database:
+        database.execute("BEGIN IMMEDIATE")
+        project_id = payload.get("project_id")
+        if project_id is not None and get_project(project_id) is None:
+            return None, "Project does not exist"
 
-    assigned_to = payload.get("assigned_to")
+        assigned_to = payload.get("assigned_to")
 
-    if assigned_to is not None:
-        assigned_user = database.execute(
-            "SELECT id FROM user WHERE id=?", (assigned_to,),
-        ).fetchone()
+        if assigned_to is not None:
+            assigned_user = database.execute(
+                "SELECT id FROM user WHERE id=?", (assigned_to,),
+            ).fetchone()
 
-        if assigned_user is None:
-            return None, "Assigned user does not exist"
+            if assigned_user is None:
+                return None, "Assigned user does not exist"
         
-    current_time = utc_now()
+        if assigned_to is not None and not can_assign_user(project_id, assigned_to):
+            return None, "Assigned user must have access to the task project"
 
-    # IDs, deletion information, and timestamps are controlled by the server.
-    # The client supplies only editable task fields and optional relationships.
-    cursor = database.execute(
-        """
-        INSERT INTO task (
-            title,
-            description,
-            status,
-            deadline,
-            project_id,
-            created_by,
-            assigned_to,
-            is_deleted,
-            deleted_at,
-            created_at,
-            updated_at
+        current_time = utc_now()
+
+        # IDs, deletion information, and timestamps are controlled by the server.
+        # The client supplies only editable task fields and optional relationships.
+        cursor = database.execute(
+            """
+            INSERT INTO task (
+                title,
+                description,
+                status,
+                deadline,
+                project_id,
+                created_by,
+                assigned_to,
+                is_deleted,
+                deleted_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
+            """,
+            (
+                payload["title"].strip(),
+                payload.get("description", "").strip(),
+                payload.get("status", "todo"),
+                payload.get("deadline"),
+                payload.get("project_id"),
+                creator_id,
+                payload.get("assigned_to"),
+                current_time,
+                current_time,
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
-        """,
-        (
-            payload["title"].strip(),
-            payload.get("description", "").strip(),
-            payload.get("status", "todo"),
-            payload.get("deadline"),
-            payload.get("project_id"),
-            creator_id,
-            payload.get("assigned_to"),
-            current_time,
-            current_time,
-        ),
-    )
-    database.commit()
-    return get_task(cursor.lastrowid), None
+        return get_task(cursor.lastrowid), None
 
 
-def list_tasks(project_id=None, unassigned=False):
+def list_tasks(user, project_id=None, unassigned=False):
     """Return active tasks in ID order, excluding soft-deleted records."""
     condition = ""
     parameters = ()
@@ -131,6 +135,9 @@ def list_tasks(project_id=None, unassigned=False):
     elif project_id is not None:
         condition = " AND project_id = ?"
         parameters = (project_id,)
+    if not is_staff(user):
+        condition += " AND project_id IN (SELECT project.id FROM project JOIN project_member ON project.id = project_member.project_id WHERE project.is_deleted = 0 AND project_member.user_id = ?)"
+        parameters += (user["id"],)
     rows = get_database().execute(
         """
         SELECT
@@ -147,6 +154,8 @@ def list_tasks(project_id=None, unassigned=False):
 
 def get_task(task_id):
     """Return one active task, or None when it is missing or soft-deleted."""
+    if task_id > 9223372036854775807:
+        return None
     row = get_database().execute(
         """
         SELECT
@@ -186,6 +195,8 @@ def delete_task(task_id):
 
     Repeated deletion does not reset the original recovery window.
     """
+    if task_id > 9223372036854775807:
+        return False
     database = get_database()
     now = utc_now()
     cursor = database.execute(
@@ -220,6 +231,8 @@ def is_recoverable(row, now):
 
 def restore_task(task_id):
     """Restore a deleted task before its recovery window expires."""
+    if task_id > 9223372036854775807:
+        return None, "Deleted task not found", 404
     database = get_database()
     # Serialize the check and update so a competing restore cannot race it.
     database.execute("BEGIN IMMEDIATE")
@@ -242,7 +255,7 @@ def restore_task(task_id):
     return get_task(task_id), None, 200
 
 
-def update_task(task_id, payload):
+def update_task(task_id, payload, actor):
     """Apply editable fields to an active task, preserving omitted values."""
     if not isinstance(payload, dict) or not payload:
         return None, "Provide task fields to update", 400
@@ -257,7 +270,7 @@ def update_task(task_id, payload):
     with database:
         database.execute("BEGIN IMMEDIATE")
         existing = get_task(task_id)
-        if existing is None:
+        if existing is None or not can_access_project(existing["project_id"], actor):
             return None, "Task not found", 404
 
         updated = {**existing, **payload}
@@ -271,6 +284,8 @@ def update_task(task_id, payload):
             ).fetchone()
             if user is None:
                 return None, "Assigned user does not exist", 400
+            if not can_assign_user(existing["project_id"], updated["assigned_to"]):
+                return None, "Assigned user must have access to the task project", 400
 
         database.execute(
             """

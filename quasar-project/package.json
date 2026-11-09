@@ -18,6 +18,9 @@
     "lint:check": "oxfmt --check && oxlint",
     "dev": "quasar dev",
     "build": "quasar build",
+    "dev:electron": "quasar dev -m electron",
+    "build:mac": "quasar build -m electron -T darwin -A arm64",
+    "build:windows": "quasar build -m electron -T win32 -A x64",
     "postinstall": "quasar prepare --silent"
   },
   "dependencies": {

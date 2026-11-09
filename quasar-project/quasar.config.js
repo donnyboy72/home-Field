@@ -3,7 +3,7 @@
 
 import { defineConfig } from '#q-app'
 
-export default defineConfig((/* ctx */) => {
+export default defineConfig(ctx => {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -31,6 +31,12 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
+      // Keep one target's build from cleaning away the other target's app.
+      ...(ctx.mode.electron && ctx.prod
+        ? {
+            distDir: `dist/electron/${ctx.targetName || process.platform}-${ctx.archName || process.arch}`
+          }
+        : {}),
       target: {
         // browser: 'baseline-widely-available',
         // node: 'node22'
@@ -189,9 +195,17 @@ export default defineConfig((/* ctx */) => {
       // specify the debugging port to use for the Electron app when running in development mode
       inspectPort: 5858,
 
+      // Produce a .app bundle and a Windows folder containing .exe + support files.
       bundler: 'packager', // 'packager' or 'builder'
 
       packager: {
+        name: 'HomeField',
+        // Stable macOS application identity; this does not enable code signing.
+        appBundleId: 'edu.homefield.desktop',
+        // Optional local runtime cache for environments with restricted downloads.
+        ...(process.env.HOMEFIELD_ELECTRON_ZIP_DIR
+          ? { electronZipDir: process.env.HOMEFIELD_ELECTRON_ZIP_DIR }
+          : {})
         // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
         // OS X / Mac App Store
         // appBundleId: '',

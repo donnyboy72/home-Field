@@ -167,8 +167,12 @@ def test_project_migration_preserves_existing_data(tmp_path):
     config = {'TESTING': True, 'DATABASE': str(path)}
     # Running initialization twice must be safe and preserve migrated values.
     for _ in range(2):
-        client = create_app(config).test_client()
+        application = create_app(config)
+        client = application.test_client()
         client.post('/api/auth/signup', json={'username': 'migration', 'password': 'migration-password'})
+        # The second startup retains the host designated by the first one.
+        if _ == 0:
+            assert application.test_cli_runner().invoke(args=['setup-host', 'migration']).exit_code == 0
         token = client.post('/api/auth/login', json={'username': 'migration', 'password': 'migration-password'}).get_json()['token']
         client.environ_base['HTTP_AUTHORIZATION'] = f'Bearer {token}'
         project = client.get('/api/projects').get_json()['projects'][0]

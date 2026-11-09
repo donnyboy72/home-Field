@@ -107,6 +107,54 @@ def migrate_project_table(connection):
     )
 
 
+def migrate_user_table(connection):
+    """Expand the Step 1 role constraint without losing accounts or sessions."""
+    definition = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'user'"
+    ).fetchone()[0]
+    if "'manager'" in definition:
+        return
+
+    # SQLite cannot alter a CHECK constraint. Rebuild only this table inside a
+    # transaction, with FK checking temporarily disabled on this setup connection.
+    # Keep the old sequence too: deleted account IDs must never be reused.
+    connection.execute("PRAGMA foreign_keys = OFF")
+    try:
+        with connection:
+            connection.execute("BEGIN IMMEDIATE")
+            sequence = connection.execute(
+                "SELECT seq FROM sqlite_sequence WHERE name = 'user'"
+            ).fetchone()
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(user)")}
+            connection.execute("""
+                CREATE TABLE user_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user'
+                        CHECK (role IN ('user', 'manager', 'host')),
+                    created_at TEXT NOT NULL
+                )
+            """)
+            role = "role" if "role" in columns else "'user'"
+            connection.execute(
+                "INSERT INTO user_new (id, username, password_hash, role, created_at) "
+                f"SELECT id, username, password_hash, {role}, created_at FROM user"
+            )
+            connection.execute("DROP TABLE user")
+            connection.execute("ALTER TABLE user_new RENAME TO user")
+            if sequence:
+                connection.execute(
+                    "UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'user'",
+                    (sequence[0],),
+                )
+            connection.execute("CREATE UNIQUE INDEX one_host ON user(role) WHERE role = 'host'")
+            if connection.execute("PRAGMA foreign_key_check").fetchone():
+                raise sqlite3.IntegrityError("Foreign key check failed during user migration")
+    finally:
+        connection.execute("PRAGMA foreign_keys = ON")
+
+
 def init_database(app):
     """Create the database, apply its schema, and register cleanup logic."""
 
@@ -130,12 +178,9 @@ def init_database(app):
     with schema_path.open("r", encoding="utf-8") as schema_file:
         connection.executescript(schema_file.read())
 
+    migrate_user_table(connection)
     migrate_task_table(connection)
     migrate_project_table(connection)
-    # Existing accounts remain ordinary users; host setup is a local CLI action.
-    columns = {row[1] for row in connection.execute("PRAGMA table_info(user)")}
-    if "role" not in columns:
-        connection.execute("ALTER TABLE user ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'host'))")
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS one_host ON user(role) WHERE role = 'host'")
     connection.commit()
     connection.close()

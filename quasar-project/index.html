@@ -10,9 +10,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover<% } %>"
     />
+    <!-- Electron permits HTTP/HTTPS here because the host address is user-selected.
+         electron-main.js restricts API requests to that host and /api/ paths.
+         The development-only WebSocket allowance supports Vite live reload. -->
     <meta
   http-equiv="Content-Security-Policy"
-  content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';<% if (ctx.dev) { %> connect-src 'self' ws://localhost:* http://localhost:50000; worker-src 'self' blob:;<% } %>"
+  content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';<% if (ctx.mode.electron) { %> connect-src 'self' http: https:<% if (ctx.dev) { %> ws://localhost:*<% } %>;<% } else if (ctx.dev) { %> connect-src 'self' ws://localhost:* http://localhost:50000;<% } %><% if (ctx.dev) { %> worker-src 'self' blob:;<% } %>"
 />
 
     <link

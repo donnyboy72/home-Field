@@ -19,6 +19,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # Reuse the host's SQLite connection for the current Flask request; db.py
 # handles opening the connection, enabling foreign keys, and closing it.
 from db import get_database
+from projects import clear_inaccessible_assignments
 
 
 def user_to_dict(row):
@@ -222,8 +223,8 @@ def list_users():
     )]
 
 
-def update_user(user_id, payload):
-    """Host account management edits usernames, never roles or passwords."""
+def update_user(user_id, payload, actor_role):
+    """Staff may edit usernames; managers cannot modify the host account."""
     if (not isinstance(payload, dict) or set(payload) != {"username"}):
         return None, "Only username can be edited", 400
     username = normalize_username(payload["username"])
@@ -234,6 +235,9 @@ def update_user(user_id, payload):
     database = get_database()
     try:
         with database:
+            row = database.execute("SELECT role FROM user WHERE id = ?", (user_id,)).fetchone()
+            if row is not None and row["role"] == "host" and actor_role != "host":
+                return None, "Managers cannot modify the host administrator", 403
             cursor = database.execute("UPDATE user SET username = ? WHERE id = ?", (username, user_id))
             if not cursor.rowcount:
                 return None, "User not found", 404
@@ -260,5 +264,30 @@ def delete_user(user_id):
             "UPDATE task SET assigned_to = NULL, updated_at = ? WHERE assigned_to = ?",
             (datetime.now(timezone.utc).isoformat(), user_id),
         )
+        database.execute("DELETE FROM project_member WHERE user_id = ?", (user_id,))
         database.execute("DELETE FROM user WHERE id = ?", (user_id,))
     return None, 204
+
+
+def set_user_role(user_id, payload):
+    """Host-only API helper: assign/remove manager, never change the host."""
+    if (not isinstance(payload, dict) or set(payload) != {"role"}
+            or not isinstance(payload["role"], str)
+            or payload["role"] not in {"user", "manager"}):
+        return None, "Role must be user or manager and no other fields are allowed", 400
+    if user_id > 9223372036854775807:
+        return None, "User not found", 404
+    database = get_database()
+    with database:
+        cursor = database.execute(
+            "UPDATE user SET role = ? WHERE id = ? AND role != 'host'",
+            (payload["role"], user_id),
+        )
+        row = database.execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            return None, "User not found", 404
+        if not cursor.rowcount:
+            return None, "The host administrator's role cannot be changed", 403
+        if payload["role"] == "user":
+            clear_inaccessible_assignments(user_id)
+    return user_to_dict(row), None, 200

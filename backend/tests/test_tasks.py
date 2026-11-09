@@ -164,6 +164,7 @@ def test_existing_minimal_database_is_migrated(tmp_path):
 
     client = application.test_client()
     client.post('/api/auth/signup', json={'username': 'migration', 'password': 'migration-password'})
+    assert application.test_cli_runner().invoke(args=['setup-host', 'migration']).exit_code == 0
     token = client.post('/api/auth/login', json={'username': 'migration', 'password': 'migration-password'}).get_json()['token']
     response = client.get('/api/tasks', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 200

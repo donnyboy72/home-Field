@@ -73,6 +73,7 @@ def test_host_users_and_safe_deletion(host, app):
     other = register(client, 'other_user')
     other_session = login(client, 'other_user')
     second_session = login(client, 'other_user')
+    assert client.patch(f"/api/users/{other['id']}/role", json={'role': 'manager'}).status_code == 200
     project = client.post('/api/projects', json={'name': 'Preserved'}, headers=other_session).get_json()['project']
     task = client.post('/api/tasks', headers=other_session, json={
         'title': 'Preserved', 'project_id': project['id'], 'assigned_to': other['id'],

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'host')),
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'manager', 'host')),
     created_at TEXT NOT NULL
 );
 
@@ -43,4 +43,11 @@ CREATE TABLE IF NOT EXISTS session (
     token_hash TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES user(id),
     expires_at TEXT NOT NULL
+);
+
+-- Empty on migration: access is granted explicitly by the host or a manager.
+CREATE TABLE IF NOT EXISTS project_member (
+    project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+    PRIMARY KEY (project_id, user_id)
 );
