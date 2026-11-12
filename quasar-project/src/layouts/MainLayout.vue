@@ -6,6 +6,7 @@
         <span v-if="signedInUser" class="q-mr-md">{{
           signedInUser.username
         }}</span>
+        <q-btn label = "Dark Mode" @click="toggleDarkMode()"/>
         <q-btn
           v-if="signedInUser"
           label="Log out"
@@ -32,6 +33,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { signedInUser, logout, authError } from '../services/auth'
+import { Dark } from 'quasar'
+
+Dark.set("auto")
+
 const router = useRouter()
 const loggingOut = ref(false)
 const logoutError = ref('')
@@ -46,5 +51,8 @@ async function signOut() {
   } finally {
     loggingOut.value = false
   }
+}
+async function toggleDarkMode(){
+  Dark.toggle()
 }
 </script>
