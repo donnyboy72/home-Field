@@ -3,16 +3,18 @@
     <div class="workspace-shell">
       <div class="heading row items-center justify-between q-col-gutter-md">
         <div class="col-12 col-sm"
-          ><div class="eyebrow">YOUR WORKSPACE</div><h1>Tasks & projects</h1
-          ><p>Keep your team's work in one place.</p></div
+          ><div class="eyebrow">WORKSPACE</div><h1>{{currentTitle}}</h1
+          ></div
         >
         <div class="col-auto"
           ><q-btn
             v-if="['host', 'manager'].includes(signedInUser?.role)"
             flat
-            label="Manage users"
+            label="Manage Users"
             to="/users"
-            no-caps /><q-btn
+            no-caps />
+            
+            <q-btn
             v-if="isStaff"
             unelevated
             color="primary"
@@ -29,7 +31,7 @@
       ></q-banner>
       <div class="stats-grid">
         <div class="stat"
-          ><span>All tasks</span><strong>{{ tasks.length }}</strong></div
+          ><span>All Tasks</span><strong>{{ tasks.length }}</strong></div
         >
         <div class="stat"
           ><span>To do</span
@@ -69,7 +71,7 @@
             class="project-link"
             :class="{ selected: filter === 'all' }"
             @click="selectProject('all')"
-            ><q-icon name="view_list" /> All tasks
+            ><q-icon name="view_list" /> All Tasks
             <span>{{ tasks.length }}</span></button
           >
           <button
@@ -77,13 +79,13 @@
             class="project-link"
             :class="{ selected: filter === 'unassigned' }"
             @click="selectProject('unassigned')"
-            ><q-icon name="inbox" /> No project
+            ><q-icon name="inbox" /> No Project
             <span>{{
               tasks.filter(t => t.project_id === null).length
             }}</span></button
           >
           <div class="section-label">PROJECTS</div>
-          <p v-if="!projects.length" class="empty-projects">No projects yet.</p>
+          <p v-if="!projects.length" class="empty-projects">No projects yet...</p>
           <div
             v-for="project in projects"
             :key="project.id"
@@ -111,7 +113,7 @@
               ><q-menu
                 ><q-list dense style="min-width: 130px"
                   ><q-item clickable v-close-popup @click="openAccess(project)"
-                    ><q-item-section>Manage access</q-item-section></q-item
+                    ><q-item-section>Manage Access</q-item-section></q-item
                   ><q-item clickable v-close-popup @click="openProject(project)"
                     ><q-item-section>Rename</q-item-section></q-item
                   ><q-item
@@ -130,20 +132,18 @@
         <main class="panel tasks-panel">
           <div class="task-top"
             ><div
-              ><h2>{{
-                tab === 'deleted' ? 'Recently deleted' : currentTitle
-              }}</h2
-              ><p>{{
+              >{{
                 tab === 'deleted'
                   ? 'Tasks can be restored within 24 hours.'
                   : 'View and manage your tasks.'
-              }}</p></div
+              }}</div
             ><q-btn
               flat
               dense
               icon="refresh"
               aria-label="Refresh"
               :loading="loading"
+              round
               @click="refresh(true)"
           /></div>
           <div class="toolbar"
@@ -285,27 +285,31 @@
               outlined
               label="Title"
               autofocus
-              :rules="[v => !!v.trim() || 'Enter a title']" /><q-input
-              v-model="draft.description"
-              outlined
-              type="textarea"
-              autogrow
-              label="Description (optional)" /><div class="row q-col-gutter-md"
-              ><q-input
+              :rules="[v => !!v.trim() || 'Enter a title']" />
+              <q-input
+                v-model="draft.description"
+                outlined
+                type="textarea"
+                autogrow
+                label="Description (optional)" />
+              <div class="row q-col-gutter-s">
+              <q-input
                 v-model="draft.deadline"
-                class="col-12 col-sm-6"
+                class=" col-sm-6 col-12 q-pr-sm"
                 outlined
                 type="date"
                 label="Due date"
-                stack-label /><q-select
+                stack-label />
+              <q-select
                 v-model="draft.status"
                 class="col-12 col-sm-6"
                 outlined
                 label="Status"
                 :options="statusOptions"
                 emit-value
-                map-options /></div
-            ><q-select
+                map-options />
+              </div>
+              <q-select
               v-if="!editingTask"
               v-model="draft.project_id"
               outlined
@@ -491,9 +495,9 @@ const projectOptions = computed(() => [
 ])
 const currentTitle = computed(() =>
   filter.value === 'all'
-    ? 'All tasks'
+    ? 'All Tasks'
     : filter.value === 'unassigned'
-      ? 'No project'
+      ? 'No Project'
       : projects.value.find(p => p.id === filter.value)?.name || 'Project'
 )
 const visibleTasks = computed(() => {
@@ -521,7 +525,7 @@ function statusLabel(status) {
 }
 function projectName(id) {
   return id == null
-    ? 'No project'
+    ? 'No Project'
     : projects.value.find(p => p.id === id)?.name || 'Unavailable project'
 }
 function showError(err) {
