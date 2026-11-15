@@ -1,10 +1,15 @@
 body {
   font-family: 'Georgia', serif;
-  color: #242633;
-  background: #f7f7fa;
+  color: $primary;
+  background: $accent;
+}
+body.body--dark{
+  color: $dark;
+  background: $dark-page;
 }
 .workspace {
-  background: #f7f7fa;
+  //color: $primary;
+  //background: $accent;
   min-height: calc(100vh - 50px);
 }
 .workspace-shell {
@@ -16,7 +21,7 @@ body {
   margin-bottom: 28px;
 }
 .eyebrow {
-  color: #777987;
+  //color: $secondary;
   font-size: 10px;
   letter-spacing: 0.14em;
   font-weight: 700;
@@ -25,7 +30,7 @@ body {
 h1,
 h2 {
   margin: 0;
-  color: #20212a;
+  //color: $primary;
   font-weight: 700;
 }
 h1 {
@@ -39,7 +44,7 @@ h2 {
 }
 .heading p,
 .task-top p {
-  color: #7a7c88;
+  //color: $secondary;
   margin: 6px 0 0;
   font-size: 13px;
 }
@@ -50,8 +55,9 @@ h2 {
   margin-bottom: 20px;
 }
 .stat {
-  background: white;
-  border: 1px solid #e9e9ee;
+  background: $accent;
+  color: $primary;
+  border: 1px solid $secondary;
   border-radius: 10px;
   padding: 17px 19px;
   display: flex;
@@ -59,14 +65,14 @@ h2 {
   gap: 8px;
 }
 .stat span {
-  color: #777987;
+  //color: $secondary;
   font-size: 12px;
   font-weight: 600;
 }
 .stat strong {
   font-size: 26px;
   line-height: 1;
-  color: #262731;
+  //color: $primary;
 }
 .content-grid {
   display: grid;
@@ -75,8 +81,9 @@ h2 {
   align-items: start;
 }
 .panel {
-  background: white;
-  border: 1px solid #e9e9ee;
+  color: $primary;
+  background: $accent;
+  border: 1px solid $secondary;
   border-radius: 10px;
 }
 .projects-panel {
@@ -97,24 +104,27 @@ h2 {
   border-radius: 7px;
   background: transparent;
   padding: 10px 9px;
-  color: #616472;
+  color: $secondary;
   text-align: left;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
+.project-link--dark{
+  color: $accent
+}
 .project-link > span:last-child {
   margin-left: auto;
   font-size: 11px;
-  color: #92939c;
+  //color: $secondary;
 }
 .project-link.selected {
-  background: #f0eef8;
-  color: #4f457c;
+  //background: $accent;
+  //color: $primary;
   font-weight: 700;
 }
 .project-link:hover {
-  background: #f6f5fa;
+  //background: $accent;
 }
 .project-row {
   display: flex;
@@ -126,14 +136,15 @@ h2 {
   text-overflow: ellipsis;
 }
 .section-label {
-  color: #a0a0a9;
+  //color: $secondary;
   font-size: 10px;
   letter-spacing: 0.1em;
   font-weight: 700;
   padding: 25px 9px 8px;
 }
+
 .empty-projects {
-  color: #999aa4;
+  //color: $secondary;
   font-size: 12px;
   margin: 8px 9px;
 }
@@ -152,10 +163,11 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   padding: 0 20px;
-  border-bottom: 1px solid #efeff2;
+  border-bottom: 1px solid $accent;
 }
 .search-field {
   width: 225px;
+  caret-color: $primary;
 }
 .search-field .q-field__control {
   height: 38px;
@@ -166,7 +178,7 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 24px;
-  border-bottom: 1px solid #f0f0f3;
+  border-bottom: 1px solid $accent;
 }
 .task-row:last-child {
   border-bottom: 0;
@@ -181,7 +193,7 @@ h2 {
 }
 .task-description {
   margin-top: 5px;
-  color: #777987;
+  //color: $secondary;
   font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -190,7 +202,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 15px;
-  color: #999aa5;
+  //color: $secondary;
   font-size: 11px;
   margin-top: 9px;
 }
@@ -203,13 +215,13 @@ h2 {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  color: #7c7d88;
+  //color: $secondary;
 }
 .status {
   padding: 5px 9px;
   border-radius: 20px;
-  color: #77717e;
-  background: #f3f1f5;
+  //color: $secondary;
+  //background: $accent;
   font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
@@ -217,12 +229,12 @@ h2 {
 }
 .status-in_progress,
 .status-review {
-  background: #fff4df;
-  color: #95671f;
+  //background: $accent;
+  color: $warning;
 }
 .status-done {
-  background: #e8f7ef;
-  color: #24784e;
+  //background: $accent;
+  color: $positive;
 }
 .empty-state {
   min-height: 250px;
@@ -231,12 +243,12 @@ h2 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #a0a0aa;
+  //color: $secondary;
   text-align: center;
   padding: 28px;
 }
 .empty-state strong {
-  color: #51525e;
+  //color: $primary;
   font-size: 14px;
 }
 .empty-state span {
@@ -253,8 +265,8 @@ h2 {
   justify-content: space-between;
 }
 .error-banner {
-  background: #fff0ef;
-  color: #9e2d29;
+  //background: $accent;
+  color: $negative;
 }
 @media (max-width: 700px) {
   .workspace-shell {

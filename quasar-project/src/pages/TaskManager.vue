@@ -17,7 +17,9 @@
             <q-btn
             v-if="isStaff"
             unelevated
+            
             color="primary"
+            text-color="accent"
             icon="add"
             label="New task"
             no-caps
@@ -162,9 +164,12 @@
               v-model="search"
               dense
               outlined
+              bg-color="primary"
+              dark
               debounce="200"
-              placeholder="Search tasks"
-              class="search-field"
+              placeholder="Search Tasks"
+              input-class="search-field"
+              
               aria-label="Search tasks"
               ><template #prepend
                 ><q-icon name="search" size="20px" /></template></q-input
