@@ -31,31 +31,7 @@
         }}<template #action
           ><q-btn flat dense label="Dismiss" @click="error = ''" /></template
       ></q-banner>
-      <div class="stats-grid">
-        <div class="stat"
-          ><span>All Tasks</span><strong>{{ tasks.length }}</strong></div
-        >
-        <div class="stat"
-          ><span>To do</span
-          ><strong>{{
-            tasks.filter(t => t.status === 'todo').length
-          }}</strong></div
-        >
-        <div class="stat"
-          ><span>In progress</span
-          ><strong>{{
-            tasks.filter(
-              t => t.status === 'in_progress' || t.status === 'review'
-            ).length
-          }}</strong></div
-        >
-        <div class="stat"
-          ><span>Complete</span
-          ><strong>{{
-            tasks.filter(t => t.status === 'done').length
-          }}</strong></div
-        >
-      </div>
+      
       <div class="content-grid">
         <aside class="panel projects-panel">
           <div class="panel-heading"
@@ -69,6 +45,7 @@
               aria-label="Create project"
               @click="openProject()"
           /></div>
+          
           <button
             class="project-link"
             :class="{ selected: filter === 'all' }"
@@ -87,6 +64,7 @@
             }}</span></button
           >
           <div class="section-label">PROJECTS</div>
+          <q-scroll-area style="height: 230px">
           <p v-if="!projects.length" class="empty-projects">No projects yet...</p>
           <div
             v-for="project in projects"
@@ -129,140 +107,175 @@
                 ></q-menu
               ></q-btn
             >
+          
           </div>
+          </q-scroll-area>
         </aside>
-        <main class="panel tasks-panel">
-          <div class="task-top"
-            ><div
-              >{{
-                tab === 'deleted'
-                  ? 'Tasks can be restored within 24 hours.'
-                  : 'View and manage your tasks.'
-              }}</div
-            ><q-btn
-              flat
-              dense
-              icon="refresh"
-              aria-label="Refresh"
-              :loading="loading"
-              round
-              @click="refresh(true)"
-          /></div>
-          <div class="toolbar"
-            ><q-tabs
-              v-model="tab"
-              dense
-              no-caps
-              active-color="primary"
-              indicator-color="primary"
-              align="left"
-              ><q-tab name="active" label="Active" /><q-tab
-                v-if="isStaff"
-                name="deleted"
-                :label="`Deleted (${deleted.length})`" /></q-tabs
-            ><q-input
-              v-model="search"
-              dense
-              outlined
-              bg-color="primary"
-              dark
-              debounce="200"
-              placeholder="Search Tasks"
-              input-class="search-field"
-              
-              aria-label="Search tasks"
-              ><template #prepend
-                ><q-icon name="search" size="20px" /></template></q-input
-          ></div>
-          <div v-if="loading && !loaded" class="empty-state"
-            >Loading tasks…</div
-          >
-          <div v-else-if="!visibleTasks.length" class="empty-state"
-            ><q-icon
-              :name="tab === 'deleted' ? 'restore_from_trash' : 'task_alt'"
-              size="32px"
-            /><strong>{{
-              search
-                ? 'No matching tasks'
-                : tab === 'deleted'
-                  ? 'No recently deleted tasks'
-                  : 'No tasks here yet'
-            }}</strong
-            ><span>{{
-              search
-                ? 'Try another search.'
-                : tab === 'deleted'
-                  ? 'Deleted tasks will appear here.'
-                  : isStaff
-                    ? 'Create a task to get started.'
-                    : 'Tasks will appear when the host or a manager grants you project access and adds tasks.'
-            }}</span></div
-          >
-          <div v-else class="task-list">
-            <article
-              v-for="task in visibleTasks"
-              :key="task.id"
-              class="task-row"
-            >
-              <div class="task-main"
-                ><div class="task-title">{{ task.title }}</div
-                ><div v-if="task.description" class="task-description">{{
-                  task.description
+
+    
+
+        <main>
+
+          <div class="stats-grid">
+        
+        <div class="stat"
+          ><span>All Tasks</span><strong>{{ tasks.length }}</strong></div
+        >
+        <div class="stat"
+          ><span>To do</span
+          ><strong>{{
+            tasks.filter(t => t.status === 'todo').length
+          }}</strong></div
+        >
+        <div class="stat"
+          ><span>In progress</span
+          ><strong>{{
+            tasks.filter(
+              t => t.status === 'in_progress' || t.status === 'review'
+            ).length
+          }}</strong></div
+        >
+        <div class="stat"
+          ><span>Complete</span
+          ><strong>{{
+            tasks.filter(t => t.status === 'done').length
+          }}</strong></div
+        >
+      </div>
+          
+          <div class="panel tasks-panel">
+            <div class="task-top"
+              ><div
+                >{{
+                  tab === 'deleted'
+                    ? 'Tasks can be restored within 24 hours.'
+                    : 'View and manage your tasks.'
                 }}</div
-                ><div class="task-meta"
-                  ><span
-                    ><q-icon name="folder_open" />
-                    {{ projectName(task.project_id) }}</span
-                  ><span v-if="task.deadline"
-                    ><q-icon name="event" /> {{ task.deadline }}</span
-                  ><span v-if="task.assigned_to"
-                    ><q-icon name="person_outline" /> User #{{
-                      task.assigned_to
-                    }}</span
-                  ></div
-                ></div
+              ><q-btn
+                flat
+                dense
+                icon="refresh"
+                aria-label="Refresh"
+                :loading="loading"
+                round
+                @click="refresh(true)"
+            /></div>
+            <div class="toolbar"
+              ><q-tabs
+                v-model="tab"
+                dense
+                no-caps
+                active-color="primary"
+                indicator-color="primary"
+                align="left"
+                ><q-tab name="active" label="Active" /><q-tab
+                  v-if="isStaff"
+                  name="deleted"
+                  :label="`Deleted (${deleted.length})`" /></q-tabs
+              ><q-input
+                v-model="search"
+                dense
+                outlined
+                bg-color="primary"
+                dark
+                debounce="200"
+                placeholder="Search Tasks"
+                input-class="search-field"
+                
+                aria-label="Search tasks"
+                ><template #prepend
+                  ><q-icon name="search" size="20px" /></template></q-input
+            ></div>
+            <div v-if="loading && !loaded" class="empty-state"
+              >Loading tasks…</div
+            >
+            <div v-else-if="!visibleTasks.length" class="empty-state"
+              ><q-icon
+                :name="tab === 'deleted' ? 'restore_from_trash' : 'task_alt'"
+                size="32px"
+              /><strong>{{
+                search
+                  ? 'No matching tasks'
+                  : tab === 'deleted'
+                    ? 'No recently deleted tasks'
+                    : 'No tasks here yet'
+              }}</strong
+              ><span>{{
+                search
+                  ? 'Try another search.'
+                  : tab === 'deleted'
+                    ? 'Deleted tasks will appear here.'
+                    : isStaff
+                      ? 'Create a task to get started.'
+                      : 'Tasks will appear when the host or a manager grants you project access and adds tasks.'
+              }}</span></div
+            >
+            <div v-else class="task-list">
+              <article
+                v-for="task in visibleTasks"
+                :key="task.id"
+                class="task-row"
               >
-              <div class="task-actions"
-                ><span class="status" :class="`status-${task.status}`">{{
-                  statusLabel(task.status)
-                }}</span
-                ><template v-if="tab === 'active'"
+                <div class="task-main"
+                  ><div class="task-title">{{ task.title }}</div
+                  ><div v-if="task.description" class="task-description">{{
+                    task.description
+                  }}</div
+                  ><div class="task-meta"
+                    ><span
+                      ><q-icon name="folder_open" />
+                      {{ projectName(task.project_id) }}</span
+                    ><span v-if="task.deadline"
+                      ><q-icon name="event" /> {{ task.deadline }}</span
+                    ><span v-if="task.assigned_to"
+                      ><q-icon name="person_outline" /> User #{{
+                        task.assigned_to
+                      }}</span
+                    ></div
+                  ></div
+                >
+                <div class="task-actions"
+                  ><span class="status" :class="`status-${task.status}`">{{
+                    statusLabel(task.status)
+                  }}</span
+                  ><template v-if="tab === 'active'"
+                    ><q-btn
+                      v-if="task.status !== 'done'"
+                      flat
+                      dense
+                      round
+                      icon="check_circle_outline"
+                      :disable="busy"
+                      aria-label="Mark complete"
+                      @click="markComplete(task)" /><q-btn
+                      flat
+                      dense
+                      round
+                      icon="edit"
+                      :disable="busy"
+                      aria-label="Edit task"
+                      @click="openTask(task)" /><q-btn
+                      flat
+                      dense
+                      round
+                      v-if="isStaff"
+                      icon="delete_outline"
+                      :disable="busy"
+                      aria-label="Delete task"
+                      @click="confirmTaskDelete(task)" /></template
                   ><q-btn
-                    v-if="task.status !== 'done'"
+                    v-else
                     flat
                     dense
-                    round
-                    icon="check_circle_outline"
+                    color="primary"
+                    no-caps
+                    label="Restore"
                     :disable="busy"
-                    aria-label="Mark complete"
-                    @click="markComplete(task)" /><q-btn
-                    flat
-                    dense
-                    round
-                    icon="edit"
-                    :disable="busy"
-                    aria-label="Edit task"
-                    @click="openTask(task)" /><q-btn
-                    flat
-                    dense
-                    round
-                    v-if="isStaff"
-                    icon="delete_outline"
-                    :disable="busy"
-                    aria-label="Delete task"
-                    @click="confirmTaskDelete(task)" /></template
-                ><q-btn
-                  v-else
-                  flat
-                  dense
-                  color="primary"
-                  no-caps
-                  label="Restore"
-                  :disable="busy"
-                  @click="restore(task)"
-              /></div>
-            </article>
-          </div>
+                    @click="restore(task)"
+                /></div>
+              </article>
+            </div>
+            </div>
         </main>
       </div>
     </div>
