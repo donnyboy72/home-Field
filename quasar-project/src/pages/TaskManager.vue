@@ -64,7 +64,7 @@
             }}</span></button
           >
           <div class="section-label">PROJECTS</div>
-          <q-scroll-area style="height: 230px">
+          <q-scroll-area style="width: 215px; height:275px;">
           <p v-if="!projects.length" class="empty-projects">No projects yet...</p>
           <div
             v-for="project in projects"
@@ -75,7 +75,7 @@
               class="project-link"
               :class="{ selected: filter === project.id }"
               @click="selectProject(project.id)"
-              ><q-icon name="folder_open" /><span class="project-name">{{
+              ><q-icon name="folder_open" /><span class="project-name" style="max-width: 125px;">{{
                 project.name
               }}</span
               ><span>{{
@@ -111,39 +111,39 @@
           </div>
           </q-scroll-area>
         </aside>
-
+      
     
 
-        <main>
+      <main>
 
           <div class="stats-grid">
         
-        <div class="stat"
-          ><span>All Tasks</span><strong>{{ tasks.length }}</strong></div
-        >
-        <div class="stat"
-          ><span>To do</span
-          ><strong>{{
-            tasks.filter(t => t.status === 'todo').length
-          }}</strong></div
-        >
-        <div class="stat"
-          ><span>In progress</span
-          ><strong>{{
-            tasks.filter(
-              t => t.status === 'in_progress' || t.status === 'review'
-            ).length
-          }}</strong></div
-        >
-        <div class="stat"
-          ><span>Complete</span
-          ><strong>{{
-            tasks.filter(t => t.status === 'done').length
-          }}</strong></div
-        >
-      </div>
+            <div class="stat"
+              ><span>All Tasks</span><strong>{{ tasks.length }}</strong></div
+            >
+            <div class="stat"
+              ><span>To do</span
+              ><strong>{{
+                tasks.filter(t => t.status === 'todo').length
+              }}</strong></div
+            >
+            <div class="stat"
+              ><span>In progress</span
+              ><strong>{{
+                tasks.filter(
+                  t => t.status === 'in_progress' || t.status === 'review'
+                ).length
+              }}</strong></div
+            >
+            <div class="stat"
+              ><span>Complete</span
+              ><strong>{{ 
+                tasks.filter(t => t.status === 'done').length
+              }}</strong></div
+            >
+          </div>
           
-          <div class="panel tasks-panel">
+          <div class="panel tasks-panel" style="max-height: 383px;">
             <div class="task-top"
               ><div
                 >{{
@@ -186,6 +186,9 @@
                 ><template #prepend
                   ><q-icon name="search" size="20px" /></template></q-input
             ></div>
+
+            <q-scroll-area style="height: 270px">
+
             <div v-if="loading && !loaded" class="empty-state"
               >Loading tasks…</div
             >
@@ -275,10 +278,11 @@
                 /></div>
               </article>
             </div>
+            </q-scroll-area>
             </div>
         </main>
       </div>
-    </div>
+      </div>
     <q-dialog v-model="taskDialog" persistent
       ><q-card class="dialog-card"
         ><q-form @submit="saveTask"
