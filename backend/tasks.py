@@ -6,6 +6,7 @@ from projects import get_project, can_access_project, can_assign_user, is_staff
 
 # Keeping valid values in one set makes request validation easy to understand
 # and matches the CHECK constraint declared in schema.sql.
+VALID_PRIORITIES = {"high", "med", "low"}
 VALID_STATUSES = {"todo", "in_progress", "review", "done"}
 
 
@@ -46,6 +47,10 @@ def validate_task_payload(payload):
     status = payload.get("status", "todo")
     if not isinstance(status, str) or status not in VALID_STATUSES:
         return "Task status must be todo, in_progress, review, or done"
+
+    priority = payload.get("priority", "med")
+    if not isinstance(priority, str) or priority not in VALID_PRIORITIES:
+        return "Task priority must be high, med, or low"
 
     deadline = payload.get("deadline")
     if deadline is not None and not isinstance(deadline, str):
@@ -100,6 +105,7 @@ def create_task(payload, creator_id):
                 title,
                 description,
                 status,
+                priority,
                 deadline,
                 project_id,
                 created_by,
@@ -109,12 +115,13 @@ def create_task(payload, creator_id):
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
             """,
             (
                 payload["title"].strip(),
                 payload.get("description", "").strip(),
                 payload.get("status", "todo"),
+                payload.get("priority", "med"),
                 payload.get("deadline"),
                 payload.get("project_id"),
                 creator_id,
@@ -141,7 +148,7 @@ def list_tasks(user, project_id=None, unassigned=False):
     rows = get_database().execute(
         """
         SELECT
-            id, title, description, status, deadline, project_id,
+            id, title, description, status, priority, deadline, project_id,
             created_by, assigned_to, is_deleted, deleted_at,
             created_at, updated_at
         FROM task
@@ -159,7 +166,7 @@ def get_task(task_id):
     row = get_database().execute(
         """
         SELECT
-            id, title, description, status, deadline, project_id,
+            id, title, description, status, priority, deadline, project_id,
             created_by, assigned_to, is_deleted, deleted_at,
             created_at, updated_at
         FROM task
@@ -177,6 +184,7 @@ def task_to_dict(row):
         "title": row["title"],
         "description": row["description"],
         "status": row["status"],
+        "priority": row["priority"],
         "deadline": row["deadline"],
         "project_id": row["project_id"],
         "created_by": row["created_by"],
@@ -260,7 +268,7 @@ def update_task(task_id, payload, actor):
     if not isinstance(payload, dict) or not payload:
         return None, "Provide task fields to update", 400
 
-    editable_fields = {"title", "description", "status", "deadline", "assigned_to"}
+    editable_fields = {"title", "description", "status", "priority", "deadline", "assigned_to"}
     if set(payload) - editable_fields:
         return None, "Request contains fields that cannot be edited", 400
 
@@ -290,13 +298,13 @@ def update_task(task_id, payload, actor):
         database.execute(
             """
             UPDATE task
-            SET title = ?, description = ?, status = ?, deadline = ?,
+            SET title = ?, description = ?, status = ?, priority = ?, deadline = ?,
                 assigned_to = ?, updated_at = ?
             WHERE id = ? AND is_deleted = 0
             """,
             (
                 updated["title"].strip(), updated["description"].strip(),
-                updated["status"], updated["deadline"],
+                updated["status"], updated["priority"], updated["deadline"],
                 updated["assigned_to"], utc_now(), task_id,
             ),
         )

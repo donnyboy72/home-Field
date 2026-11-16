@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS task (
     description TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'todo'
         CHECK (status IN ('todo', 'in_progress', 'review', 'done')),
+    priority TEXT NOT NULL DEFAULT 'med'
+        CHECK (priority IN ('high', 'med', 'low')),
     deadline TEXT,
     project_id INTEGER,
     created_by INTEGER,

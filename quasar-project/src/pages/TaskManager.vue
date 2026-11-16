@@ -225,7 +225,10 @@
                     task.description
                   }}</div
                   ><div class="task-meta"
-                    ><span
+                    ><q-badge
+                      :color="priorityOptions.find(p => p.value === task.priority)?.color || 'orange-9'"
+                      :label="`${priorityLabel(task.priority)} priority`"
+                    /><span
                       ><q-icon name="folder_open" />
                       {{ projectName(task.project_id) }}</span
                     ><span v-if="task.deadline"
@@ -331,6 +334,13 @@
                 emit-value
                 map-options />
               </div>
+              <q-select
+                v-model="draft.priority"
+                outlined
+                label="Priority"
+                :options="priorityOptions"
+                emit-value
+                map-options />
               <q-select
               v-if="!editingTask"
               v-model="draft.project_id"
@@ -502,6 +512,14 @@ const confirmDialog = ref(false),
 let timer,
   alive = true,
   refreshSequence = 0
+const priorityOptions = [
+  { label: 'High', value: 'high', color: 'red-8' },
+  { label: 'Medium', value: 'med', color: 'orange-9' },
+  { label: 'Low', value: 'low', color: 'blue-8' }
+]
+function priorityLabel(priority) {
+  return priorityOptions.find(p => p.value === priority)?.label || 'Medium'
+}
 const statuses = [
   { label: 'To do', value: 'todo' },
   { label: 'In progress', value: 'in_progress' },
@@ -610,6 +628,7 @@ function openTask(task = null) {
     description: task?.description || '',
     deadline: task?.deadline || '',
     status: task?.status || 'todo',
+    priority: task?.priority || 'med',
     project_id:
       task?.project_id ??
       (typeof filter.value === 'number' ? filter.value : null),
@@ -636,6 +655,7 @@ async function saveTask() {
     description: draft.value.description,
     deadline: draft.value.deadline || null,
     status: draft.value.status,
+    priority: draft.value.priority,
     assigned_to: rawAssignee ? Number(rawAssignee) : null
   }
   try {

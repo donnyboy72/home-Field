@@ -188,3 +188,16 @@ forbidden controls, and loads only accessible data. An already open task form
 closes when a refresh shows that its task is no longer accessible. Backend
 checks apply independently of the interface. Clients and the host's interface
 continue to use HTTP/JSON through Flask; only the host backend opens SQLite.
+
+
+## Task priority
+
+New and edited tasks offer High, Medium, and Low priority. The task list and
+recovery list display a colored, labeled priority badge. Priority does not change
+the existing task ordering or permissions.
+
+The task API accepts `priority` as `high`, `med`, or `low` on creation and partial
+edits, and returns it on task reads and restoration. Omitted creation priority
+defaults to `med`; omitted edit priority preserves the current value. Invalid
+values return `400`. Restart Flask to apply the automatic SQLite migration:
+existing active and deleted tasks receive Medium priority without a database reset.

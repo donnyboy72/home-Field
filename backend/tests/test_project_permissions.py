@@ -71,11 +71,11 @@ def test_visibility_and_permitted_editing(workspace):
     for task in (w['hidden'], w['unassigned']):
         url = f"/api/tasks/{task['id']}"
         assert client.get(url, headers=headers).status_code == 404
-        assert client.patch(url, headers=headers, json={'title': 'Intrusion'}).status_code == 404
+        assert client.patch(url, headers=headers, json={'title': 'Intrusion', 'priority': 'high'}).status_code == 404
         assert client.get(url).get_json()['task'] == task
     url = f"/api/tasks/{w['task']['id']}"
     patch = {'title': 'Edited', 'description': 'Details', 'deadline': '2026-11-05',
-             'status': 'review', 'assigned_to': w['colleague']['id']}
+             'status': 'review', 'priority': 'high', 'assigned_to': w['colleague']['id']}
     response = client.patch(url, headers=headers, json=patch)
     assert response.status_code == 200
     assert all(response.get_json()['task'][key] == value for key, value in patch.items())

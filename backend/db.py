@@ -58,6 +58,7 @@ def migrate_task_table(connection):
     columns_to_add = {
         "description": "TEXT NOT NULL DEFAULT ''",
         "status": "TEXT NOT NULL DEFAULT 'todo'",
+        "priority": "TEXT NOT NULL DEFAULT 'med' CHECK (priority IN ('high', 'med', 'low'))",
         "deadline": "TEXT",
         "project_id": "INTEGER",
         "created_by": "INTEGER",
