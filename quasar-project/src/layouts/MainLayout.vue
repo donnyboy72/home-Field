@@ -6,7 +6,20 @@
         <span v-if="signedInUser" class="q-mr-md">{{
           signedInUser.username
         }}</span>
-        <q-btn round icon="moon" @click="toggleDarkMode()"/>
+        <q-btn
+          flat
+          round
+          color="white"
+          :icon="Dark.isActive ? 'light_mode' : 'dark_mode'"
+          :aria-label="
+            Dark.isActive ? 'Switch to light mode' : 'Switch to dark mode'
+          "
+          @click="toggleDarkMode"
+        >
+          <q-tooltip>{{
+            Dark.isActive ? 'Switch to light mode' : 'Switch to dark mode'
+          }}</q-tooltip>
+        </q-btn>
         <q-btn
           v-if="signedInUser"
           label="Log out"
@@ -50,7 +63,7 @@ async function signOut() {
     loggingOut.value = false
   }
 }
-async function toggleDarkMode(){
+function toggleDarkMode() {
   Dark.toggle()
 }
 </script>
