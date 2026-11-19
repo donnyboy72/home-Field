@@ -165,8 +165,6 @@
                 v-model="tab"
                 dense
                 no-caps
-                active-color="primary"
-                indicator-color="primary"
                 align="left"
                 ><q-tab name="active" label="Active" /><q-tab
                   v-if="isStaff"
@@ -176,10 +174,9 @@
                 v-model="search"
                 dense
                 outlined
-                bg-color="primary"
-                dark
                 debounce="200"
                 placeholder="Search Tasks"
+                class="search-bar"
                 input-class="search-field"
                 
                 aria-label="Search tasks"

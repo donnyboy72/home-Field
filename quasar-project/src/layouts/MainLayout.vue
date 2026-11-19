@@ -33,7 +33,7 @@
     <q-page-container>
       <q-banner
         v-if="logoutError"
-        class="bg-red-1 text-negative"
+        class="error-banner"
         role="alert"
         >{{ logoutError }}</q-banner
       >

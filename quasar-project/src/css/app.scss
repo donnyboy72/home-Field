@@ -1,11 +1,36 @@
 body {
+  --homefield-surface: #{$accent};
+  --homefield-muted: #5c5d65;
+  --homefield-divider: #cbc7d7;
+  --homefield-outline: #{$secondary};
+  --homefield-error: #{$negative};
+  --homefield-warning: #8a4600;
+  --homefield-success: #17682b;
   font-family: 'Georgia', serif;
   color: $primary;
   background: $accent;
 }
-body.body--dark{
-  color: $dark;
+body.body--dark {
+  --homefield-surface: var(--q-dark);
+  --homefield-muted: #b8b9c4;
+  --homefield-divider: #454551;
+  --homefield-outline: var(--homefield-divider);
+  --homefield-error: #ff8c96;
+  --homefield-warning: #ffc078;
+  --homefield-success: #75da8b;
+  color: $accent;
   background: $dark-page;
+}
+.text-negative {
+  --q-negative: var(--homefield-error);
+}
+// Quasar uses primary for the focused label and outline.
+.q-field--dark.q-field--focused .q-field__control {
+  --q-primary: #fff;
+}
+.error-banner {
+  background: var(--homefield-surface);
+  color: var(--homefield-error);
 }
 .workspace {
   //color: $primary;
@@ -55,9 +80,8 @@ h2 {
   margin-bottom: 20px;
 }
 .stat {
-  background: $accent;
-  color: $primary;
-  border: 1px solid $secondary;
+  background: var(--homefield-surface);
+  border: 3px solid var(--homefield-outline);
   border-radius: 10px;
   padding: 17px 19px;
   display: flex;
@@ -81,9 +105,8 @@ h2 {
   align-items: start;
 }
 .panel {
-  color: $primary;
-  background: $accent;
-  border: 1px solid $secondary;
+  background: var(--homefield-surface);
+  border: 3px solid var(--homefield-outline);
   border-radius: 10px;
 }
 .projects-panel {
@@ -104,14 +127,11 @@ h2 {
   border-radius: 7px;
   background: transparent;
   padding: 10px 9px;
-  color: $secondary;
+  color: var(--homefield-muted);
   text-align: left;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
-}
-.project-link--dark{
-  color: $accent
 }
 .project-link > span:last-child {
   margin-left: auto;
@@ -163,14 +183,16 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   padding: 0 20px;
-  border-bottom: 1px solid $accent;
+  border-bottom: 1px solid var(--homefield-divider);
 }
 .search-field {
   width: 225px;
-  caret-color: $primary;
 }
-.search-field .q-field__control {
+.search-bar .q-field__control {
   height: 38px;
+}
+.search-bar:not(.q-field--highlighted) .q-field__control::before {
+  border-color: var(--homefield-outline);
 }
 .task-row {
   display: flex;
@@ -178,7 +200,7 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 24px;
-  border-bottom: 1px solid $accent;
+  border-bottom: 1px solid var(--homefield-divider);
 }
 .task-row:last-child {
   border-bottom: 0;
@@ -229,12 +251,10 @@ h2 {
 }
 .status-in_progress,
 .status-review {
-  //background: $accent;
-  color: $warning;
+  color: var(--homefield-warning);
 }
 .status-done {
-  //background: $accent;
-  color: $positive;
+  color: var(--homefield-success);
 }
 .empty-state {
   min-height: 250px;
@@ -263,10 +283,6 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-.error-banner {
-  //background: $accent;
-  color: $negative;
 }
 @media (max-width: 700px) {
   .workspace-shell {
