@@ -45,6 +45,7 @@ def test_create_and_retrieve_task(authenticated_client):
     assert created_task["project_id"] == 1
     assert created_task["created_by"] == user["id"]
     assert created_task["assigned_to"] == user["id"]
+    assert created_task["assignee_username"] == user["username"]
     assert created_task["is_deleted"] is False
     assert created_task["deleted_at"] is None
     assert created_task["created_at"]
@@ -95,6 +96,7 @@ def test_create_task_uses_defaults(authenticated_client):
     user = client.get("/api/auth/me").get_json()["user"]
     assert task["created_by"] == user["id"]
     assert task["assigned_to"] is None
+    assert task["assignee_username"] is None
 
 
 def test_create_task_rejects_invalid_status(authenticated_client):

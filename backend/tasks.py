@@ -9,6 +9,13 @@ from projects import get_project, can_access_project, can_assign_user, is_staff
 VALID_PRIORITIES = {"high", "med", "low"}
 VALID_STATUSES = {"todo", "in_progress", "review", "done"}
 
+TASK_SELECT = """
+    SELECT task.*, (
+        SELECT username FROM user WHERE user.id = task.assigned_to
+    ) AS assignee_username
+    FROM task
+"""
+
 
 def utc_now():
     """Return the current time as an ISO 8601 timestamp in UTC."""
@@ -146,14 +153,7 @@ def list_tasks(user, project_id=None, unassigned=False):
         condition += " AND project_id IN (SELECT project.id FROM project JOIN project_member ON project.id = project_member.project_id WHERE project.is_deleted = 0 AND project_member.user_id = ?)"
         parameters += (user["id"],)
     rows = get_database().execute(
-        """
-        SELECT
-            id, title, description, status, priority, deadline, project_id,
-            created_by, assigned_to, is_deleted, deleted_at,
-            created_at, updated_at
-        FROM task
-        WHERE is_deleted = 0
-        """ + condition + " ORDER BY id",
+        TASK_SELECT + " WHERE is_deleted = 0" + condition + " ORDER BY id",
         parameters,
     ).fetchall()
     return [task_to_dict(row) for row in rows]
@@ -164,14 +164,7 @@ def get_task(task_id):
     if task_id > 9223372036854775807:
         return None
     row = get_database().execute(
-        """
-        SELECT
-            id, title, description, status, priority, deadline, project_id,
-            created_by, assigned_to, is_deleted, deleted_at,
-            created_at, updated_at
-        FROM task
-        WHERE id = ? AND is_deleted = 0
-        """,
+        TASK_SELECT + " WHERE id = ? AND is_deleted = 0",
         (task_id,),
     ).fetchone()
     return None if row is None else task_to_dict(row)
@@ -189,6 +182,7 @@ def task_to_dict(row):
         "project_id": row["project_id"],
         "created_by": row["created_by"],
         "assigned_to": row["assigned_to"],
+        "assignee_username": row["assignee_username"],
         # SQLite stores Boolean values as 0 and 1. Convert that integer into a
         # real Boolean before Flask serializes the response as JSON.
         "is_deleted": bool(row["is_deleted"]),
@@ -219,7 +213,7 @@ def list_deleted_tasks():
     """Return deleted tasks that can still be restored."""
     now = datetime.now(timezone.utc)
     rows = get_database().execute(
-        "SELECT * FROM task WHERE is_deleted = 1 ORDER BY id"
+        TASK_SELECT + " WHERE is_deleted = 1 ORDER BY id"
     ).fetchall()
     return [task_to_dict(row) for row in rows if is_recoverable(row, now)]
 

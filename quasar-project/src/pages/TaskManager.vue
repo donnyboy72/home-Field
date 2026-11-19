@@ -49,14 +49,15 @@
           <button
             class="project-link"
             :class="{ selected: filter === 'all' }"
+            :aria-current="filter === 'all' ? 'page' : undefined"
             @click="selectProject('all')"
-            ><q-icon name="view_list" /> All Tasks
-            <span>{{ tasks.length }}</span></button
+            ><q-icon name="home" /> Home</button
           >
           <button
             v-if="isStaff"
             class="project-link"
             :class="{ selected: filter === 'unassigned' }"
+            :aria-current="filter === 'unassigned' ? 'page' : undefined"
             @click="selectProject('unassigned')"
             ><q-icon name="inbox" /> No Project
             <span>{{
@@ -74,6 +75,7 @@
             <button
               class="project-link"
               :class="{ selected: filter === project.id }"
+              :aria-current="filter === project.id ? 'page' : undefined"
               @click="selectProject(project.id)"
               ><q-icon name="folder_open" /><span class="project-name" style="max-width: 125px;">{{
                 project.name
@@ -114,9 +116,9 @@
       
     
 
-      <main>
+      <main :class="{ 'project-board-view': showProjectBoard }">
 
-          <div class="stats-grid">
+          <div v-if="filter === 'all'" class="stats-grid">
         
             <div class="stat"
               ><span>All Tasks</span><strong>{{ tasks.length }}</strong></div
@@ -143,7 +145,7 @@
             >
           </div>
           
-          <div class="panel tasks-panel" style="max-height: 383px;">
+          <div class="panel tasks-panel" :class="{ 'project-board-panel': showProjectBoard }">
             <div class="task-top"
               ><div
                 >{{
@@ -169,7 +171,7 @@
                 ><q-tab name="active" label="Active" /><q-tab
                   v-if="isStaff"
                   name="deleted"
-                  :label="`Deleted (${deleted.length})`" /></q-tabs
+                  :label="`Deleted (${deletedForView.length})`" /></q-tabs
               ><q-input
                 v-model="search"
                 dense
@@ -184,12 +186,15 @@
                   ><q-icon name="search" size="20px" /></template></q-input
             ></div>
 
-            <q-scroll-area style="height: 270px">
+            <component
+              :is="showProjectBoard ? 'div' : QScrollArea"
+              :class="showProjectBoard ? 'project-board-body' : 'task-list-scroll'"
+            >
 
             <div v-if="loading && !loaded" class="empty-state"
               >Loading tasks…</div
             >
-            <div v-else-if="!visibleTasks.length" class="empty-state"
+            <div v-else-if="!showProjectBoard && !visibleTasks.length" class="empty-state"
               ><q-icon
                 :name="tab === 'deleted' ? 'restore_from_trash' : 'task_alt'"
                 size="32px"
@@ -210,11 +215,26 @@
                       : 'Tasks will appear when the host or a manager grants you project access and adds tasks.'
               }}</span></div
             >
-            <div v-else class="task-list">
+            <div v-else :class="{ 'project-board': showProjectBoard }">
+              <section v-for="group in taskGroups" :key="group.label">
+                <h2 v-if="showProjectBoard" class="project-column-heading">
+                  {{ group.label }} <span>({{ group.tasks.length }})</span>
+                </h2>
+                <div
+                  class="task-list"
+                  :class="{ 'project-column-scroll': showProjectBoard }"
+                  :tabindex="showProjectBoard ? 0 : undefined"
+                  :role="showProjectBoard ? 'region' : undefined"
+                  :aria-label="showProjectBoard ? group.label + ' tasks' : undefined"
+                >
+                  <p v-if="showProjectBoard && !group.tasks.length" class="empty-projects">
+                    {{ search.trim() ? 'No matching tasks' : 'No tasks yet' }}
+                  </p>
               <article
-                v-for="task in visibleTasks"
+                v-for="task in group.tasks"
                 :key="task.id"
                 class="task-row"
+                :class="{ 'panel project-task-tile': showProjectBoard }"
               >
                 <div class="task-main"
                   ><div class="task-title">{{ task.title }}</div
@@ -225,14 +245,14 @@
                     ><q-badge
                       :color="priorityOptions.find(p => p.value === task.priority)?.color || 'orange-9'"
                       :label="`${priorityLabel(task.priority)} priority`"
-                    /><span
+                    /><span v-if="!showProjectBoard"
                       ><q-icon name="folder_open" />
                       {{ projectName(task.project_id) }}</span
                     ><span v-if="task.deadline"
                       ><q-icon name="event" /> {{ task.deadline }}</span
                     ><span v-if="task.assigned_to"
-                      ><q-icon name="person_outline" /> User #{{
-                        task.assigned_to
+                      ><q-icon name="person_outline" /> {{
+                        task.assignee_username || assigneeNames[task.assigned_to] || 'Username unavailable'
                       }}</span
                     ></div
                   ></div
@@ -277,8 +297,10 @@
                     @click="restore(task)"
                 /></div>
               </article>
+                </div>
+              </section>
             </div>
-            </q-scroll-area>
+            </component>
             </div>
         </main>
       </div>
@@ -474,6 +496,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { QScrollArea } from 'quasar'
 import { useRouter } from 'vue-router'
 import { clearSession, signedInUser, checkSession } from '../services/auth'
 import * as api from '../services/tasks'
@@ -483,6 +506,7 @@ const isStaff = computed(() =>
   ['host', 'manager'].includes(signedInUser.value?.role)
 )
 const assignees = ref([])
+const assigneeNames = ref({})
 const accessDialog = ref(false),
   accessProject = ref(null),
   accessUsers = ref([]),
@@ -532,26 +556,41 @@ const projectOptions = computed(() => [
 ])
 const currentTitle = computed(() =>
   filter.value === 'all'
-    ? 'All Tasks'
+    ? 'Home'
     : filter.value === 'unassigned'
       ? 'No Project'
       : projects.value.find(p => p.id === filter.value)?.name || 'Project'
 )
+function tasksForView(list) {
+  if (filter.value === 'all') return list
+  const projectId = filter.value === 'unassigned' ? null : filter.value
+  return list.filter(task => task.project_id === projectId)
+}
+const deletedForView = computed(() => tasksForView(deleted.value))
 const visibleTasks = computed(() => {
+  const list = tab.value === 'deleted' ? deletedForView.value : tasksForView(tasks.value)
   const query = search.value.trim().toLowerCase()
-  return (tab.value === 'deleted' ? deleted.value : tasks.value).filter(t => {
-    const matchesProject =
-      tab.value === 'deleted' ||
-      filter.value === 'all' ||
-      (filter.value === 'unassigned'
-        ? t.project_id === null
-        : t.project_id === filter.value)
-    return (
-      matchesProject &&
-      (!query ||
-        `${t.title} ${t.description || ''}`.toLowerCase().includes(query))
-    )
-  })
+  return list.filter(task =>
+    `${task.title} ${task.description || ''}`.toLowerCase().includes(query)
+  )
+})
+const showProjectBoard = computed(() => typeof filter.value === 'number' && tab.value === 'active')
+const boardColumns = [
+  { label: 'To do', statuses: ['todo'] },
+  { label: 'In progress', statuses: ['in_progress', 'review'] },
+  { label: 'Done', statuses: ['done'] }
+]
+const priorityRank = { high: 0, med: 1, low: 2 }
+const taskGroups = computed(() => {
+  if (!showProjectBoard.value) return [{ label: 'Tasks', tasks: visibleTasks.value }]
+  const ranked = [...visibleTasks.value].sort(
+    (a, b) => (priorityRank[a.priority] ?? priorityRank.med) -
+      (priorityRank[b.priority] ?? priorityRank.med)
+  )
+  return boardColumns.map(({ label, statuses }) => ({
+    label,
+    tasks: ranked.filter(task => statuses.includes(task.status))
+  }))
 })
 function selectProject(value) {
   filter.value = value
@@ -589,6 +628,24 @@ async function refresh(manual = false) {
       api.loadProjects()
     ])
     if (!alive || sequence !== refreshSequence) return
+    // Older hosts return only the assignee ID in task responses.
+    const missingNames = [...active, ...trash].filter(
+      task => task.assigned_to != null && !task.assignee_username
+    )
+    const lookups = missingNames.length === 0
+      ? []
+      : isStaff.value
+        ? [api.loadUsers()]
+        : [...new Set(missingNames.map(task => task.project_id))]
+            .filter(id => id != null)
+            .map(id => api.loadProjectAssignees(id))
+    const results = await Promise.allSettled(lookups)
+    if (!alive || sequence !== refreshSequence) return
+    const users = results.flatMap(result =>
+      result.status === 'fulfilled' ? result.value : []
+    )
+    if (signedInUser.value) users.push(signedInUser.value)
+    assigneeNames.value = Object.fromEntries(users.map(user => [user.id, user.username]))
     if (!isStaff.value) {
       tab.value = 'active'
       projectDialog.value = false
@@ -610,7 +667,7 @@ async function refresh(manual = false) {
       typeof filter.value === 'number' &&
       !projectList.some(p => p.id === filter.value)
     )
-      filter.value = 'all'
+      selectProject('all')
   } catch (err) {
     if (alive && sequence === refreshSequence) showError(err)
   } finally {

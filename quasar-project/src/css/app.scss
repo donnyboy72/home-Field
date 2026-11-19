@@ -28,6 +28,10 @@ body.body--dark {
 .q-field--dark.q-field--focused .q-field__control {
   --q-primary: #fff;
 }
+// Dropdown options render in a popup outside the field.
+.q-item--dark[role='option'][aria-selected='true'] {
+  color: #fff;
+}
 .error-banner {
   background: var(--homefield-surface);
   color: var(--homefield-error);
@@ -170,6 +174,66 @@ h2 {
 }
 .tasks-panel {
   min-height: 340px;
+  max-height: 383px;
+}
+.task-list-scroll {
+  height: 270px;
+}
+// Let the Projects sidebar set the desktop grid row height.
+.project-board-view {
+  contain: size;
+  align-self: stretch;
+}
+.project-board-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+}
+.project-board-body {
+  flex: 1;
+  min-height: 0;
+}
+.project-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(170px, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.project-board > section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.project-column-heading {
+  padding: 0 4px 10px;
+}
+.project-column-heading span {
+  color: var(--homefield-muted);
+  font-size: 12px;
+}
+.project-column-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 3px;
+}
+.project-column-scroll .project-task-tile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-bottom: 3px solid var(--homefield-outline);
+}
+.project-task-tile .task-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .task-top {
   display: flex;
@@ -202,7 +266,7 @@ h2 {
   padding: 18px 24px;
   border-bottom: 1px solid var(--homefield-divider);
 }
-.task-row:last-child {
+.task-list-scroll .task-row:last-child {
   border-bottom: 0;
 }
 .task-main {
@@ -293,6 +357,9 @@ h2 {
   }
   .content-grid {
     grid-template-columns: 1fr;
+  }
+  .project-board-view {
+    height: 410px;
   }
   .toolbar {
     flex-wrap: wrap;
